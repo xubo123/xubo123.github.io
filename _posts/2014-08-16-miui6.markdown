@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "「知乎」如何评价 MIUI 6？"
-date:       2017-04-132 12:00:00
+date:       2017-04-12 12:00:00
 author:     "Xu"
 header-img: "img/post-bg-miui6.jpg"
 tags:
