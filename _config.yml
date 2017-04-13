@@ -6,7 +6,7 @@ email: huxpro@gmail.com
 description: "研究云平台docker容器热迁移 | 徐波，Cloud & Container Lover，Architecture Engineer | 这里是 @Xu徐波 的个人博客，Deep In Mind
 keyword: "徐波, Xu, boboer,xbblfz, 徐波的博客, Xu Blog, 博客, 个人网站, 互联网, Docker, Coder, 体系结构, lfz, lfz的boy"
 url: "xubo123.github.com"              # your host, for absolute URL
-baseurl: "xbblfz"                             # for example, '/blog' if your blog hosted on 'host/blog'
+baseurl: "/xbblfz"                             # for example, '/blog' if your blog hosted on 'host/blog'
 
 
 
