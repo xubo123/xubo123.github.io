@@ -71,7 +71,7 @@ ga_domain: huangxuan.me
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "Coding，Thinking，<br>享受时空每一个未知被揭开的瞬间"
-sidebar-avatar: /xbblfz/img/lfz.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-avatar: /xbblfz/img/lfz.JPG      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 
