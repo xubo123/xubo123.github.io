@@ -7,7 +7,7 @@ author:     "Xu"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
 tags:
-    - goLang
+    - goLang
 ---
 ## Go语言基础学习十－过程式编程二
 
