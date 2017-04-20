@@ -9,10 +9,10 @@ catalog: true
 tags:
     - docker源码
 ---
-#docker源码阅读笔记
+# docker源码阅读笔记
 
 docker命令执行流程
-##1.创建Docker Client
+## 1.创建Docker Client
   
   代码允许首先进入主函数入口docker/cmd/docker/docker.go
   func main(){}
@@ -25,7 +25,7 @@ docker命令执行流程
 
 </br></br></br>
 －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
-##2.cmd.Execute()执行过程：
+## 2.cmd.Execute()执行过程：
 
   //命令执行的准备工作
   
@@ -53,7 +53,7 @@ docker命令执行流程
 －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
  
 
-##3.目标命令执行：
+## 3.目标命令执行：
    
    //命令的具体执行
   
@@ -72,7 +72,7 @@ docker命令执行流程
        PersistentPostRun()//PostRun（）执行后子命令继承并执行。
        
        
-##4.checkpoint create的Run（）函数解析
+## 4.checkpoint create的Run（）函数解析
 
 ###（1）checkpoint命令树添加至命令行接口结构体对象
 在第一步中我们提到commands.AddCommands(cmd, dockerCli)将所有的客户端命令Command结构体添加到该命令行接口Command的结构体对象，涉及到添加checkpoint命令（命令树，子命令包括create，list，remove）如下：
@@ -127,7 +127,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 ```		
 
-###（2）Checkpoint Create具体执行RunE实现：
+### （2）Checkpoint Create具体执行RunE实现：
 
 ```
 func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
@@ -160,7 +160,7 @@ func (cli *Client) CheckpointCreate(ctx context.Context, container string, optio
 ```
 
 
-#####...未完待续，下一部分我们将就checkpoint create命令讲解docker client请求发送，及docker daemon接受请求并实现路由的部分
+##### ...未完待续，下一部分我们将就checkpoint create命令讲解docker client请求发送，及docker daemon接受请求并实现路由的部分
 
 
    
