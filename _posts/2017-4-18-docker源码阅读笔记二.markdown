@@ -1,0 +1,167 @@
+---
+layout:     post
+title:      "docker源码阅读笔记二－docker客户名命令执行流程"
+subtitle:   " \"docker源码\""
+date:       2017-04-18 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - docker源码
+---
+#docker源码阅读笔记
+
+docker命令执行流程
+##1.创建Docker Client
+  
+  代码允许首先进入主函数入口docker/cmd/docker/docker.go
+  func main(){}
+  该主函数主要完成两件事：
+  
+  （1）command.NewDockerCli(stdin, stdout, stderr)，生成一个带有输入输出的客户端对象
+  
+  （2）newDockerCommand(dockerCli)根据该客户端对象并解析命令行参数生成带有命令行参数及客户端配置信息的cmd命令行接口对象，该过程中的commands.AddCommands(cmd, dockerCli)将所有的客户端命令Command结构体添加到该命令行接口Command的结构体对象并且定义所有客户端命令结构体中的RunE成员函数。然后调用cmd.Execute()根据输入参数args完成命令执行。
+###command.go中的结构体Command很重要，里面的成员包括很多所需要的参数信息，及执行函数，还有一些标志位和输入输出流等命令执行相关的信息
+
+</br></br></br>
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+##2.cmd.Execute()执行过程：
+
+  //命令执行的准备工作
+  
+  （1）初始化命令帮助信息
+  c.initHelpCmd()
+  
+  （2）解析参数：
+  
+  ```  
+  var args []string
+  if c.args == nil && filepath.Base(os.Args[0]) != "cobra.test" {
+		args = os.Args[1:]
+	} else {
+		args = c.args
+	}
+  var flags []string
+	if c.TraverseChildren {
+		cmd, flags, err = c.Traverse(args)//命令树参数分发
+	} else {
+		cmd, flags, err = c.Find(args)//根据命令行参数直接找到目标命令
+
+  	}
+ ```
+ 
+－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+ 
+
+##3.目标命令执行：
+   
+   //命令的具体执行
+  
+  err = cmd.execute(flags)
+  
+  //此时的cmd是根据参数args找到的指定命令并执行该命令中的RunE函数
+  
+  （1）c.preRun(),将initializers中的所有函数执行一遍，这里的initialzers是一个函数切片，但目前还没有找到定义位置。
+   
+  （2）按如下顺序(每个步骤都会判断Command中该函数成员是否为空)执行命令：
+       
+       PersistentPreRun()//子命令会继承并且执行
+       PreRun()//子命令不会继承
+       Run()//该命令的实际运行函数，大部分命令只会执行这一个步骤
+       PostRun()//命令Run（）之后执行
+       PersistentPostRun()//PostRun（）执行后子命令继承并执行。
+       
+       
+##4.checkpoint create的Run（）函数解析
+
+###（1）checkpoint命令树添加至命令行接口结构体对象
+在第一步中我们提到commands.AddCommands(cmd, dockerCli)将所有的客户端命令Command结构体添加到该命令行接口Command的结构体对象，涉及到添加checkpoint命令（命令树，子命令包括create，list，remove）如下：
+
+cmd.AddCommand(
+		// checkpoint	checkpoint.NewCheckpointCommand(dockerCli)｝
+		
+ 该命令的实现部分：
+ 
+ ```
+// NewCheckpointCommand returns the `checkpoint` subcommand (only in experimental)
+func NewCheckpointCommand(dockerCli *command.DockerCli) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "checkpoint",
+		Short: "Manage checkpoints",
+		Args:  cli.NoArgs,
+		RunE:  dockerCli.ShowHelp,
+		Tags:  map[string]string{"experimental": "", "version": "1.25"},
+	}
+	cmd.AddCommand(
+		newCreateCommand(dockerCli),//添加子命令checkpoint create
+		newListCommand(dockerCli),//添加子命令checkpoint list
+		newRemoveCommand(dockerCli),//添加子命令checkpoint remove
+	)
+	return cmd
+}
+```	
+
+我们这里将checkpoint create命令作为解析对象，对newCreateCommand(dockerCli)实现作出分析：
+
+```
+func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
+	var opts createOptions
+
+	cmd := &cobra.Command{
+		Use:   "create [OPTIONS] CONTAINER CHECKPOINT",
+		Short: "Create a checkpoint from a running container",
+		Args:  cli.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.container = args[0]
+			opts.checkpoint = args[1]
+			return runCreate(dockerCli, opts)
+		},//checkpoint create Command结构体中最重要的部分，与checkpoint create的具体执行有关：runCreate（）函数
+	}
+
+	flags := cmd.Flags()
+	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "Leave the container running after checkpoint")
+	flags.StringVarP(&opts.checkpointDir, "checkpoint-dir", "", "", "Use a custom checkpoint storage directory")
+
+	return cmd
+}
+
+```		
+
+###（2）Checkpoint Create具体执行RunE实现：
+
+```
+func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
+	client := dockerCli.Client()
+
+	checkpointOpts := types.CheckpointCreateOptions{
+		CheckpointID:  opts.checkpoint,
+		CheckpointDir: opts.checkpointDir,
+		Exit:          !opts.leaveRunning,
+	}//根据参数，实例化检查点创建选项结构体，包含了检查点创建过程中的一些可选配置条件
+
+	err := client.CheckpointCreate(context.Background(), opts.container, checkpointOpts)//具体执行检查点创建步骤
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(dockerCli.Out(), "%s\n", opts.checkpoint)
+	return nil
+}
+```
+
+client.CheckpointCreate（）主要实现了向docker daemon使用post方式发送checkpoint create命令的json数据交由docker daemon管理：
+
+```
+func (cli *Client) CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error {
+	resp, err := cli.post(ctx, "/containers/"+container+"/checkpoints", nil, options, nil)//post方式发送json数据，得到响应
+	ensureReaderClosed(resp)
+	return err
+}
+```
+
+
+#####...未完待续，下一部分我们将就checkpoint create命令讲解docker client请求发送，及docker daemon接受请求并实现路由的部分
+
+
+   
+   
