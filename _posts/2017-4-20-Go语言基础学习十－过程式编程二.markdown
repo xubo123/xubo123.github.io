@@ -1,0 +1,120 @@
+## Go语言基础学习十－过程式编程二
+
+### for循环语句：<br>
+1.无限循环：<br>
+for<br>{<br>block<br>}
+
+2.while循环<br>
+for booleanEx<br>{<br>block<br>}
+
+3.//与java中for语句一致，初始化，循环条件，每次循环操作<br>
+  for  preState;booleanEx;stateEx<br>{<br>block<br>}
+  
+4.逐字符迭代字符串<br>
+for index,char :=range string<br>{<br>block<br>}//char可以省略如下<br>
+for index := range string<br>{<br>block<br>}
+
+5.数组和切片迭代<br>
+for index,item :=range ArrayOrSlice<br>{<br>block<br>}//item可以省略如下<br>
+for index :=range ArrayOrSlice<br>{<br>block<br>}
+
+6.映射迭代(无序循环)<br>
+for key value := range map<br>{<br>block<br>}//可以省略value如下<br>
+for key := range map<br>{<br>block<br>}
+
+7.通道迭代<br>
+for item :=range Channel<br>{<br>block<br>}
+
+### 通信和并发编程
+首先了解goroutine的概念，goroutine是程序中与其他goroutine相互独立而并发执行的函数或方法调用。每一个Go程序中都至少有一个goroutine，即main包中的main（）函数主goroutine。它就如同轻量级的线程可以被大批量创建，所有的goroutine共享相同的地址空间，同时Go语言提供了锁原语来保证数据能够安全的跨goroutine共享。
+
+goroutine的创建使用如下go语句创建：<br>
+go function(arguments)//调用一个已有的函数<br>
+go func(paraments) {block} (arguments)//调用一个临时创建的匿名函数，但与其他函数一样，需要传入该临时函数所需要的参数arguments。
+
+goroutine之间相互通信，协作并发是通过通道实现的
+
+通道的创建：<br>
+channel :=make (chan Type) or channel :=make (chan Type,Capacity)//定义通道容量即为带缓冲区的通道
+
+通道默认都是双向的，单向通道的创建我们在下一节进行讲解。
+
+示例：<br>
+
+```
+counterA:= createCounter(2)<br>
+counterB:=createCounter(102)<br>
+for i:=0;i<5;i++<br>{<br>
+a:=<-counterA
+fmt.Println("(A->%d,B->%d)",a,<-counterB)
+<br>}
+
+<br>
+func createCounter(start int) chan int{<br>
+next:=make(chan int)<br>
+go func(i int){<br>
+for{<br>
+next<-i<br>
+i++<br>
+}(start)//这里向该匿名函数传入参数<br>
+return next<br>
+}
+<br>}
+```
+
+### select语句
+当我们需要多个goroutine并发执行时，每一个goroutine都有其自身的通道，我们可以使用select语句来监控它的通信<br>
+select语句语法如下：
+
+```
+select{<br>
+case sendOrReceive1:block1<br>
+...<br>
+case sendOrReceiveN:blockN<br>
+default:blockD
+<br>}
+```
+
+go语言会按顺序逐个从头到尾评估每一个发送或接收语句。如果其中的任意一个语句可以继续执行则从那些可以执行的语句中任意选择一条来使用。如果没有任意一条可以执行，则执行default中的语句，如果没有default语句则该select语句将会被阻塞
+
+示例：
+
+```
+   func expensiveComputation(data Data,answer chan int ,done chan bool)<br>{
+<br>
+   finished :=false<br>
+   for !finished{<br>
+   ...//计算<br>
+   answer <-result
+<br>}
+<br>
+   done <- true
+<br>}
+<br>
+   const allDone =2 <br>
+   doneCount := 0<br>
+   answera :=make(chan int)<br>
+   answerb :=make(chan int)<br>
+   defer func(){<br>
+     close(answera)<br>
+     close(answerb)<br>
+}()<br>
+   done :make(chan bool)<br>
+   defer  func(){<br>
+  close(done)<br>
+}()<br><br>
+   go expensiveComputation(data1,answera,done)//昂贵计算goroutineA<br>
+   go expensiveComputation(data2,answerb,done)//昂贵计算goroutineB<br><br>
+   for doneCount!=allDone{//当两个计算任务都完成后停止循环<br>
+    var which,result,int<br><br>
+    select{<br>
+      case result =<-answera: which ='a'<br>
+      case result =<-answerb: which ='b'<br>
+      case <-done :doneCount++<br>
+}<br><br>
+   if which!=0{<br>
+      fmt.Printf("%c->%d",which,result)<br>
+}<br>
+   fmt.Println()<br>
+}<br>
+```
