@@ -1,3 +1,14 @@
+---
+layout:     post
+title:      "Go语言基础学习十－过程式编程二"
+subtitle:   " \"Go过程式编程\""
+date:       2017-04-20 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - Go语言
+---
 ## Go语言基础学习十－过程式编程二
 
 ### for循环语句：<br>
