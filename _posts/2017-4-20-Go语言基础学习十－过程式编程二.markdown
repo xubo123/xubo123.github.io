@@ -1,6 +1,17 @@
+---
+layout:     post
+title:      "Go语言基础学习十－过程式编程二"
+subtitle:   " \"Go过程式编程\""
+date:       2017-04-20 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - goLang
+---
 ## Go语言基础学习十－过程式编程二
 
-### for循环语句：<br>
+### 1.for循环语句：<br>
 1.无限循环：<br>
 for<br>{<br>block<br>}
 
@@ -25,7 +36,7 @@ for key := range map<br>{<br>block<br>}
 7.通道迭代<br>
 for item :=range Channel<br>{<br>block<br>}
 
-### 通信和并发编程
+### 2.通信和并发编程
 首先了解goroutine的概念，goroutine是程序中与其他goroutine相互独立而并发执行的函数或方法调用。每一个Go程序中都至少有一个goroutine，即main包中的main（）函数主goroutine。它就如同轻量级的线程可以被大批量创建，所有的goroutine共享相同的地址空间，同时Go语言提供了锁原语来保证数据能够安全的跨goroutine共享。
 
 goroutine的创建使用如下go语句创建：<br>
@@ -62,7 +73,7 @@ return next<br>
 <br>}
 ```
 
-### select语句
+### 3.select语句
 当我们需要多个goroutine并发执行时，每一个goroutine都有其自身的通道，我们可以使用select语句来监控它的通信<br>
 select语句语法如下：
 
