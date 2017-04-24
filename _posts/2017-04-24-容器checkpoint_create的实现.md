@@ -1,4 +1,16 @@
-###docker源码阅读笔记五－容器checkpoint create的实现
+---
+layout:     post
+title:      "docker源码阅读笔记五"
+subtitle:   "容器checkpoint create的实现一"
+date:       2017-04-24 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - docker源码
+---
+
+### docker源码阅读笔记五－容器checkpoint create的实现一
 
 本章的内容我们将会就checkpoint create命令分析从daemon经过路由器分发调用containerd模块的grpc发出checkpoint create命令rpc请求数据的流程。
 
@@ -136,11 +148,11 @@ func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHd
 }
 ```
 
-###sendRequest()步骤有三个步骤：<br>
+### sendRequest()步骤有三个步骤：<br>
 1.与请求目的段建立数据传输流<br>
 2.向建立好的数据流写入请求数据<br>
 3.关闭数据流<br>
 
 第一步中的NewStream(ctx, callHdr)是通过callHdr中的调用方法名或其他相关信息建立连接，根据http2Client中transports对象中的相关信息创建http协议请求头部文件及url路径，若contained的api中没有请求中所需要调用的命令则会报错流连接建立失败，若流成功建立则继续向流写入参数opts数据，t.Write(stream, outBuf, opts)传输该命令执行所需要的参数相关信息。
 
-###下一章我们将从containerd服务器端接收请求数据实现容器检查点文件创建开始分析。。。
+### 下一章我们将从containerd服务器端接收请求数据实现容器检查点文件创建开始分析。。。
