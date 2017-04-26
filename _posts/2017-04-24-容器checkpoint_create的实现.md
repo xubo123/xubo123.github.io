@@ -78,7 +78,33 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 
 2.调用containerd模块的CreateCheckpoint(container.ID, config.CheckpointID, checkpointDir, config.Exit)命令实现检查点创建
 
-所以接下来我们研究containerd模块对检查点文件的实现部分：
+由于daemon.containerd在Daemon结构体中的形式为：containerd libcontainerd.Client(一个interface接口),所以libcontainerd.Client.CreateCheckpoint（）接口的实现如下：
+
+```
+func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return err
+	}
+
+	_, err := clnt.remote.apiClient.CreateCheckpoint(context.Background(), &containerd.CreateCheckpointRequest{
+		Id: containerID,
+		Checkpoint: &containerd.Checkpoint{
+			Name:        checkpointID,
+			Exit:        exit,
+			Tcp:         true,
+			UnixSockets: true,
+			Shell:       false,
+			EmptyNS:     []string{"network"},
+		},
+		CheckpointDir: checkpointDir,
+	})
+	return err
+}
+```
+
+其中clnt.remote.apiClient在client.remote结构体中的形式为：apiClient containerd.APIClient（同样为一个接口）该接口中的CreateCheckpoint实现如下：
 
 ```
 func (c *aPIClient) CreateCheckpoint(ctx context.Context, in *CreateCheckpointRequest, opts ...grpc.CallOption) (*CreateCheckpointResponse, error) {
