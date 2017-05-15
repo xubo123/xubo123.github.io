@@ -9,7 +9,7 @@ catalog: true
 tags:
     - docker源码
 ---
-docker源码阅读笔记七－containerd中源码实现grpc服务器监听
+### docker源码阅读笔记七－containerd中源码实现grpc服务器监听
 
 上一章我们将docker部分的源码如何实现grpc的服务器监听，在执行函数runContainerdDaemon()过程中调用cmd := exec.Command(containerdBinary, args...)，相当于执行命令
 
@@ -17,7 +17,9 @@ docker源码阅读笔记七－containerd中源码实现grpc服务器监听
 docker-containerd -l unix:///var/run/docker/libcontainerd/ docker-containerd.sock --metrics-interval=0 --start-timeout 2m --state-dir /var/run/docker/libcontainerd/containerd --shim docker-containerd-shim --runtime docker-runc --debug
 ```	
 docker-containerd命令则是通过编译containerd源码得到的二进制文件，所以执行docker－containerd命令时则需要通过分析containerd源码的主函数入口展开分析来研究对指定套接字的监听。
-##1.主函数入口
+
+## 1.主函数入口
+
 containerd进入主函数入口如下：
 
 ```
@@ -71,7 +73,8 @@ containerd进入主函数入口如下：
 	}
 }
 ```
-##2.containerd后台进程应用app启动
+## 2.containerd后台进程应用app启动
+
 app.Run的实现部分如下：
 
 ```
@@ -190,7 +193,7 @@ app.Action = func(context *cli.Context) {
 		}
 ```
 
-##3.daemon(context)函数启用Containerd Daemon
+## 3.daemon(context)函数启用Containerd Daemon
 
 
 ```
@@ -250,7 +253,8 @@ func daemon(context *cli.Context) error {
 
 接下来来看这两个步骤事如何实现的。
 
-###1）启动grpc服务器
+### 1）启动grpc服务器
+
 daemon(context *cli.Context)函数中的server, err := startServer(listenParts[0], listenParts[1])实现了grpc服务器的启动，但我们想具体看一下grpc的启动步骤，所以进入startServer函数部分如下：
 
 ```
@@ -280,7 +284,7 @@ func startServer(protocol, address string) (*grpc.Server, error) {
 }
 ```
 
-###2）为grpc服务器注册API服务
+### 2）为grpc服务器注册API服务
 
 在daemon(context)中启动grpc服务器后，即通过调用types.RegisterAPIServer(server, grpcserver.NewServer(sv))来为grpc服务器注册服务，实现如下：
 
@@ -436,6 +440,6 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 
 研究思路整理：main（）－>app.Run()->a.Action(context)->daemon(context)->startServer()->grpc.NewServer()->types.RegisterAPIServer()构造好了service对象提供服务（包含服务器和提供的服务api信息）。这一张描述了containerd源码部分启动grpc服务器和对指定套接字的监听并且注册了apiserver服务器的所有api服务（建立json和处理handler的关联关系），得到整合服务器和其提供的服务对象的service对象，并填充到整体的containerd的Server对象。
 
-###下一章将分析当docker的containerd模块发送checkpoint Create Json数据到docker containerd监听的grpc服务器调用具体的方法处理handler实现checkpointcreate的流程。
+### 下一章将分析当docker的containerd模块发送checkpoint Create Json数据到docker containerd监听的grpc服务器调用具体的方法处理handler实现checkpointcreate的流程。
 
 
