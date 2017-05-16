@@ -231,8 +231,9 @@ func daemon(context *cli.Context) error {
 		wg.Add(1)
 		w := supervisor.NewWorker(sv, wg)
 		go w.Start()
-	}
+	}//wg为sync.WaitGroup同步goroutine，一个worker里面包含一个supervisor和sync.WaitGroup，这里的wg主要用于实现容器的启动部分
 	if err := sv.Start(); err != nil {
+	  //这里sv即supervisor.Start()来启动监管supervisor处理各种task
 		return err
 	}
 	for ss := range s {
