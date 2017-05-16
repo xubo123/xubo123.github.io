@@ -1,8 +1,8 @@
 ---
 layout:     post
-title:      "docker源码阅读笔记七"
-subtitle:   "容器checkpoint create的实现三"
-date:       2017-05-15 12:00:00
+title:      "docker源码阅读笔记八"
+subtitle:   "容器checkpoint create的实现四"
+date:       2017-05-16 12:00:00
 author:     "Xu"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
