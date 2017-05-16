@@ -439,7 +439,8 @@ func (c *container) Checkpoint(cpt Checkpoint, checkpointDir string) error {
 }
 ```
 至此，containerd源码部分实现checkpointCreate的命令的使命完成，接下里就交付给runc实现具体checkpoint创建！
-###流程总结如下：
-######(1.containerd对请求的监听处理)（Server(lis)->handleRawConn->s.serveNewHTTP2Transport->serveStreams->handleStream->processUnaryRPC）->（2.路由分发找到了具体的方法执行handler实现）（_API_CreateCheckpoint_Handler->CreateCheckpoint->SendTask(e)->handleTask->createCheckpoint->Checkpoint）->（3.经过containerd模块的包装处理交付runc进一步实现容器检查点创建）exec.Command(c.runtime, args...)
 
-###下一章我们将分析runc源码部分如何实现docker容器检查点的创建!!!
+### 流程总结如下：
+###### (1.containerd对请求的监听处理)（Server(lis)->handleRawConn->s.serveNewHTTP2Transport->serveStreams->handleStream->processUnaryRPC）->（2.路由分发找到了具体的方法执行handler实现）（_API_CreateCheckpoint_Handler->CreateCheckpoint->SendTask(e)->handleTask->createCheckpoint->Checkpoint）->（3.经过containerd模块的包装处理交付runc进一步实现容器检查点创建）exec.Command(c.runtime, args...)
+
+### 下一章我们将分析runc源码部分如何实现docker容器检查点的创建!!!
