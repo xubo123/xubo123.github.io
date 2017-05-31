@@ -1,3 +1,14 @@
+---
+layout:     post
+title:      "criu Checkpoint流程分析"
+subtitle:   "criu checkpoint一"
+date:       2017-05-31 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - docker源码（CRIU）
+---
 ## CRIU-Checkpoint／Restore备份流程分析
 
 官网（https://criu.org/Checkpoint/Restore）描述如下：
