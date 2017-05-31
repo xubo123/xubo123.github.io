@@ -13,8 +13,8 @@ tags:
 
 官网（https://criu.org/Checkpoint/Restore）描述如下：
 
-checkpoint过程主要依赖于／proc文件系统（这是criu checkpoint获取所需要大部分数据的地方），从/proc获取的数据包括：<\br>
-1.文件描述符信息（/proc/$pid/fd和/proc/$pid/fdinfo）<\br>
+checkpoint过程主要依赖于／proc文件系统（这是criu checkpoint获取所需要大部分数据的地方），从/proc获取的数据包括：</br>
+1.文件描述符信息（/proc/$pid/fd和/proc/$pid/fdinfo）</br>
 2.通道参数</br>
 3.内存映射（/proc/$pid/maps和/proc/$pid/map_files）</br>
 等。</br>
