@@ -22,7 +22,7 @@ docker-containerd命令则是通过编译containerd源码得到的二进制文�
 
 containerd进入主函数入口如下：
 
-```
+{% highlight go %}
    
     func main() {	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: time.RFC3339Nano})
 	app := cli.NewApp()//新建一个app对象，在containerd架构中，contained的服务后台进程看做一个应用对象来提供服务
@@ -72,12 +72,12 @@ containerd进入主函数入口如下：
 		logrus.Fatal(err)
 	}
 }
-```
+{% endhighlight %}
 ## 2.containerd后台进程应用app启动
 
 app.Run的实现部分如下：
 
-```
+{% highlight go %}
     
     func (a *App) Run(arguments []string) (err error) {
 	if a.Author != "" || a.Email != "" {
@@ -181,22 +181,22 @@ app.Run的实现部分如下：
 	a.Action(context)//docker containerd第一次执行就是执行这个函数来启动grpc服务器
 	return nil
 }
-```
+{% endhighlight %}
 
 根据上述代码分析，可以知道docker－containerd命令第一次执行的时候，app的Commands成员为空，因为海没有启动contaienrd daemon对app内的Commands进行初始化设置，故执行app.Action的默认操作来初始化containerddaemon及app.Command,在main（）函数中我们可以看到
 
-```
+{% highlight go %}
 app.Action = func(context *cli.Context) {
 		if err := daemon(context); err != nil {
 		//这里的daemon(context)就是非常关键的启动containerd服务daemon的入口，同时开启grpc服务器
 			logrus.Fatal(err)
 		}
-```
+{% endhighlight %}
 
 ## 3.daemon(context)函数启用Containerd Daemon
 
 
-```
+{% highlight go %}
 func daemon(context *cli.Context) error {
 	stateDir := context.String("state-dir")//context包含来参数信息并且对参数名称进行正规化如：－l对应了listen。
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
@@ -246,7 +246,7 @@ func daemon(context *cli.Context) error {
 	}
 	return nil
 }
-```
+{% endhighlight %}
 启动daemon这个函数做了两件事：
 
 1）启动grpc服务器
@@ -258,7 +258,7 @@ func daemon(context *cli.Context) error {
 
 daemon(context *cli.Context)函数中的server, err := startServer(listenParts[0], listenParts[1])实现了grpc服务器的启动，但我们想具体看一下grpc的启动步骤，所以进入startServer函数部分如下：
 
-```
+{% highlight go %}
 func startServer(protocol, address string) (*grpc.Server, error) {
 	// TODO: We should use TLS.
 	// TODO: Add an option for the SocketGroup.
@@ -283,13 +283,13 @@ func startServer(protocol, address string) (*grpc.Server, error) {
 	}()
 	return s, nil
 }
-```
+{% endhighlight %}
 
 ### 2）为grpc服务器注册API服务
 
 在daemon(context)中启动grpc服务器后，即通过调用types.RegisterAPIServer(server, grpcserver.NewServer(sv))来为grpc服务器注册服务，实现如下：
 
-```
+{% highlight go %}
 //_API_serviceDesc就是json数据与handler建立关联的静态数据，默认配置的关联关系
 var _API_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "types.API",
@@ -437,7 +437,7 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	}
 	s.m[sd.ServiceName] = srv//将该服务service对象（局部的服务器与服务之间的关系构成对外的服务体）作为整体填充到整体的containerd的Sever对象（包括所有类型的服务，不仅仅API服务还有健康检查服务器提供的服务等）中
 }
-```
+{% endhighlight %}
 
 研究思路整理：main（）－>app.Run()->a.Action(context)->daemon(context)->startServer()->grpc.NewServer()->types.RegisterAPIServer()构造好了service对象提供服务（包含服务器和提供的服务api信息）。这一张描述了containerd源码部分启动grpc服务器和对指定套接字的监听并且注册了apiserver服务器的所有api服务（建立json和处理handler的关联关系），得到整合服务器和其提供的服务对象的service对象，并填充到整体的containerd的Server对象。
 

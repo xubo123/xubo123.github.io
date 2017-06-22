@@ -15,7 +15,7 @@ tags:
     stream, err := t.NewStream(ctx, callHdr)//首先建立一个与发送目的端发送请求数据的流数据
     经过调试可以得到该callHdr对象：
     
- ```
+ {% highlight go %}
  
     type CallHdr struct {
 	// Host specifies the peer's host.
@@ -38,7 +38,7 @@ tags:
 	Flush bool
 }
 
-```
+{% endhighlight %}
    其中
    Host:/var/run/docker/libcontainerd/docker-containerd.sock</br>
    Method:/types.API/CreateCheckpoint </br>
@@ -50,15 +50,15 @@ tags:
    实现对grpc请求套接字监听的部分自然是docker daemon初始化的时候就已经准备好了，因为当daemon启动后就可以提供一系列的API服务，时刻监听API grpc请求。所以我们需要从Daemon.Start()这个函数展开分析，
 这个函数在docker源码阅读笔记三中有过初步研究，它包含所有Daemon启动需要的准备工作，其中第十个步骤根据DaemonCli创建containerd远程访问客户端对象：
 
-```
+{% highlight go %}
 containerdRemote, err := libcontainerd.New (cli.getLibcontainerdRoot(),cli.getPlatformRemoteOptions()...)
-```
+{% endhighlight %}
 
 就创建了一个Containerd远程访问的客户端对象containerdRemote，通过该对象可以向grpc服务器发送请求，在这个对象的创建过程中则启动了Containerd后台进程并对docker-containerd.sock设置了监听。
 
 从libcontainerd.New 展开分析：
 
-```
+{% highlight go %}
 
      // New creates a fresh instance of libcontainerd remote.
   
@@ -127,11 +127,11 @@ containerdRemote, err := libcontainerd.New (cli.getLibcontainerdRoot(),cli.getPl
 
 	return r, nil
 }
-```
+{% endhighlight %}
 
 从containerd远程访问对象的创建代码来看，grpc的服务器端的启用及对套件字的监听是在r.runContainerdDaemon();实现的，所以接下来我们深入研究该函数看看grpc服务器的启用过程
    
-```
+{% highlight go %}
    
     func (r *remote) runContainerdDaemon() error {
 	pidFilename := filepath.Join(r.stateDir, containerdPidFilename)
@@ -239,7 +239,7 @@ containerdRemote, err := libcontainerd.New (cli.getLibcontainerdRoot(),cli.getPl
 	return nil
     }
   
-   ```
+   {% endhighlight %}
    
 这一章主要讲述docker源码部分实现grpc服务器建立及对套接字的监听，在执行命令docker-containerd..之后将进入github.com/docker/containerd源码进行分析
 

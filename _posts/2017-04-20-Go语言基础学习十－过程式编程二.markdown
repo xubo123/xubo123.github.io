@@ -52,7 +52,7 @@ channel :=make (chan Type) or channel :=make (chan Type,Capacity)//定义通道�
 
 示例：<br>
 
-```
+{% highlight go %}
 counterA:= createCounter(2)<br>
 counterB:=createCounter(102)<br>
 for i:=0;i<5;i++<br>{<br>
@@ -71,26 +71,26 @@ i++<br>
 return next<br>
 }
 <br>}
-```
+{% endhighlight %}
 
 ### 3.select语句
 当我们需要多个goroutine并发执行时，每一个goroutine都有其自身的通道，我们可以使用select语句来监控它的通信<br>
 select语句语法如下：
 
-```
+{% highlight go %}
 select{<br>
 case sendOrReceive1:block1<br>
 ...<br>
 case sendOrReceiveN:blockN<br>
 default:blockD
 <br>}
-```
+{% endhighlight %}
 
 go语言会按顺序逐个从头到尾评估每一个发送或接收语句。如果其中的任意一个语句可以继续执行则从那些可以执行的语句中任意选择一条来使用。如果没有任意一条可以执行，则执行default中的语句，如果没有default语句则该select语句将会被阻塞
 
 示例：
 
-```
+{% highlight go %}
    func expensiveComputation(data Data,answer chan int ,done chan bool)<br>{
 <br>
    finished :=false<br>
@@ -128,4 +128,4 @@ go语言会按顺序逐个从头到尾评估每一个发送或接收语句。如
 }<br>
    fmt.Println()<br>
 }<br>
-```
+{% endhighlight %}

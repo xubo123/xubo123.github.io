@@ -34,7 +34,7 @@ docker命令执行流程
   
   （2）解析参数：
   
-  ```  
+  {% highlight go %} 
   var args []string
   if c.args == nil && filepath.Base(os.Args[0]) != "cobra.test" {
 		args = os.Args[1:]
@@ -48,7 +48,7 @@ docker命令执行流程
 		cmd, flags, err = c.Find(args)//根据命令行参数直接找到目标命令
 
   	}
- ```
+ {% endhighlight %}
  
 －－－－－－－－－－－－－－－－－－－－－－－－－－－－－－－
  
@@ -82,7 +82,7 @@ cmd.AddCommand(
 		
  该命令的实现部分：
  
- ```
+ {% highlight go %}
 // NewCheckpointCommand returns the `checkpoint` subcommand (only in experimental)
 func NewCheckpointCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
@@ -99,11 +99,11 @@ func NewCheckpointCommand(dockerCli *command.DockerCli) *cobra.Command {
 	)
 	return cmd
 }
-```	
+{% endhighlight %}
 
 我们这里将checkpoint create命令作为解析对象，对newCreateCommand(dockerCli)实现作出分析：
 
-```
+{% highlight go %}
 func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	var opts createOptions
 
@@ -125,11 +125,11 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-```		
+{% endhighlight %}		
 
 ### （2）Checkpoint Create具体执行RunE实现：
 
-```
+{% highlight go %}
 func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 	client := dockerCli.Client()
 
@@ -147,17 +147,17 @@ func runCreate(dockerCli *command.DockerCli, opts createOptions) error {
 	fmt.Fprintf(dockerCli.Out(), "%s\n", opts.checkpoint)
 	return nil
 }
-```
+{% endhighlight %}
 
 client.CheckpointCreate（）主要实现了向docker daemon使用post方式发送checkpoint create命令的json数据交由docker daemon管理：
 
-```
+{% highlight go %}
 func (cli *Client) CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error {
 	resp, err := cli.post(ctx, "/containers/"+container+"/checkpoints", nil, options, nil)//post方式发送json数据，得到响应
 	ensureReaderClosed(resp)
 	return err
 }
-```
+{% endhighlight %}
 
 
 ##### ...未完待续，下一部分我们将就checkpoint create命令讲解docker client请求发送，及docker daemon接受请求并实现路由的部分

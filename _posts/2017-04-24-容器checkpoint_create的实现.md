@@ -16,29 +16,29 @@ tags:
 
 由上一章的内容我们了解到在apiServer路由器初始化的过程中需要对checkpoint命令的路由实现初始化：即将checkpoint命令的路由项添加到apiServer的路由表routes中去。在添加该路由项的过程中，构建checkpoint结构体如下：
 
-```
+{% highlight go %}
 // checkpointRouter is a router to talk with the checkpoint controller
 type checkpointRouter struct {
 	backend Backend
 	decoder httputils.ContainerDecoder
 	routes  []router.Route
 }
-```
+{% endhighlight %}
 
 其中的Backend成员就是checkpoint子命令的实现接口：
 
-```
+{% highlight go %}
 // Backend for Checkpoint
 type Backend interface {
 	CheckpointCreate(container string, config types.CheckpointCreateOptions) error
 	CheckpointDelete(container string, config types.CheckpointDeleteOptions) error
 	CheckpointList(container string, config types.CheckpointListOptions) ([]types.Checkpoint, error)
 }
-```
+{% endhighlight %}
 
 接口的实现如下：
 
-```
+{% highlight go %}
 // CheckpointCreate checkpoints the process running in a container with CRIU
 func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreateOptions) error {
 	container, err := daemon.GetContainer(name)
@@ -70,7 +70,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 
 	return nil
 }
-```
+{% endhighlight %}
 
 这部分daemon端的代码负责的内容有：
 
@@ -80,7 +80,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 
 由于daemon.containerd在Daemon结构体中的形式为：containerd libcontainerd.Client(一个interface接口),所以libcontainerd.Client.CreateCheckpoint（）接口的实现如下：
 
-```
+{% highlight go %}
 func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
@@ -102,11 +102,11 @@ func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, ch
 	})
 	return err
 }
-```
+{% endhighlight %}
 
 其中clnt.remote.apiClient在client.remote结构体中的形式为：apiClient containerd.APIClient（同样为一个接口）该接口中的CreateCheckpoint实现如下：
 
-```
+{% highlight go %}
 func (c *aPIClient) CreateCheckpoint(ctx context.Context, in *CreateCheckpointRequest, opts ...grpc.CallOption) (*CreateCheckpointResponse, error) {
 	out := new(CreateCheckpointResponse)
 	err := grpc.Invoke(ctx, "/types.API/CreateCheckpoint", in, out, c.cc, opts...)
@@ -115,11 +115,11 @@ func (c *aPIClient) CreateCheckpoint(ctx context.Context, in *CreateCheckpointRe
 	}
 	return out, nil
 }
-```
+{% endhighlight %}
 
 很明显，这个函数只是负责根据参数调用grpc.Invoke(ctx, "/types.API/CreateCheckpoint", in, out, c.cc, opts...)来发出检查点创建请求，grpc.InVoke是负责发送RPC请求request,实现如下：
 
-```
+{% highlight go %}
 func Invoke(ctx context.Context, method string, args, reply interface{}, cc *ClientConn, opts ...CallOption) error {
 	if cc.dopts.unaryInt != nil {
 		return cc.dopts.unaryInt(ctx, method, args, reply, cc, invoke, opts...)
@@ -133,13 +133,13 @@ func invoke(ctx context.Context, method string, args, reply interface{}, cc *Cli
 	stream, err = sendRequest(ctx, cc.dopts.codec, cc.dopts.cp, callHdr, t, args, topts)
     err = recvResponse(cc.dopts, t, &c, stream, reply)
 }
-```
+{% endhighlight %}
 
 根据grpc.Invoke代码的分析，我们看到发出RPC请求request的实现是通过sendRequest(ctx, cc.dopts.codec, cc.dopts.cp, callHdr, t, args, topts)来实现的，并且响应的接受是通过recvResponse(cc.dopts, t, &c, stream, reply)来处理响应
 
 我们先了解发送请求的过程sendRequest（）：
 
-```
+{% highlight go %}
 / sendRequest writes out various information of an RPC such as Context and Message.
 func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHdr *transport.CallHdr, t transport.ClientTransport, args interface{}, opts *transport.Options) (_ *transport.Stream, err error) {
 	stream, err := t.NewStream(ctx, callHdr)//首先建立一个与发送目的端发送请求数据的流数据
@@ -172,7 +172,7 @@ func sendRequest(ctx context.Context, codec Codec, compressor Compressor, callHd
 	// Sent successfully.
 	return stream, nil
 }
-```
+{% endhighlight %}
 
 ### sendRequest()步骤有三个步骤：<br>
 1.与请求目的段建立数据传输流<br>

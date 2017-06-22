@@ -24,7 +24,7 @@ tags:
    
 ### 2.containerd服务器端对套接字的监听
   
-```
+{% highlight go %}
 func (s *Server) Serve(lis net.Listener) error
  {
  ...
@@ -63,11 +63,11 @@ for {
 	}
 
 }
-```
+{% endhighlight %}
 
 请求处理实现handleRawConn(rawConn)：1.连接认证  2.处理请求
 
-```
+{% highlight go %}
 // handleRawConn is run in its own goroutine and handles a just-accepted
 // connection that has not had any I/O performed on it yet.
 func (s *Server) handleRawConn(rawConn net.Conn) {
@@ -98,11 +98,11 @@ func (s *Server) handleRawConn(rawConn net.Conn) {
 		s.serveNewHTTP2Transport(conn, authInfo)//checkpoint create的实现主要在于使用该函数来处理请求
 	}
 }
-```
+{% endhighlight %}
 
 serveNewHTTP2Transport(conn, authInfo)实现如下：新建一个serverTransport对象，服务该对象中的数据流
 
-```
+{% highlight go %}
 func (s *Server) serveNewHTTP2Transport(c net.Conn, authInfo credentials.AuthInfo) {
 	st, err := transport.NewServerTransport("http2", c, s.opts.maxConcurrentStreams, authInfo)
 	if err != nil {
@@ -134,11 +134,11 @@ func (s *Server) serveStreams(st transport.ServerTransport) {
 	})
 	wg.Wait()
 }
-```
+{% endhighlight %}
 
 对数据流提供服务函数handleStream(st, stream, s.traceInfo(st, stream))如下：
 
-```
+{% highlight go %}
 type service struct {
 	server interface{} // the server for service methods
 	md     map[string]*MethodDesc
@@ -229,10 +229,10 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 		trInfo.tr.Finish()
 	}
 }
-```
+{% endhighlight %}
 handleStream关键部分在于获取服务名方法名称后，与对应的Server结构体方法描述成员以及流描述成员进行匹配，我们所研究的`checkpint create`命令属于方法，所以会使用 `processUnaryRPC(t, stream, srv, md, trInfo) `进行单次rpc请求处理函数。接下来我们将对该函数如何处理单次rpc请求进行研究：
 
-```
+{% highlight go %}
 type MethodDesc struct {
 	MethodName string
 	Handler    methodHandler
@@ -257,13 +257,13 @@ if err := s.sendResponse(t, stream, reply, s.opts.cp, opts); err != nil {//处�
 			return err
 		}
 }
-```
+{% endhighlight %}
 从以上对processUnaryRPC代码分析基本上containerd服务器端完成对请求数据的处理及请求到具体方法执行的路由分发，接下来我们就要进入具体方法的执行，及方法描述结构体映射中对应的Handler的具体处理情况。
 
 ### 3.checkpointCreate具体实现handler
    根据笔记七中的_API_serviceDesc的静态数据的关联映射可以知道CreateCheckpoint方法对应的handler为_API_CreateCheckpoint_Handler，该handler实现如下：
  
-```   
+{% highlight go %}   
    func _API_CreateCheckpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateCheckpointRequest)
 	if err := dec(in); err != nil {
@@ -281,10 +281,10 @@ if err := s.sendResponse(t, stream, reply, s.opts.cp, opts); err != nil {//处�
 	}
 	return interceptor(ctx, in, info, handler)
 }
-```
+{% endhighlight %}
 (APIServer).CreateCheckpoint(ctx, req.(*CreateCheckpointRequest))实现如下：
 
-```
+{% highlight go %}
 type apiServer struct {
 	sv *supervisor.Supervisor
 }
@@ -306,10 +306,10 @@ func (s *apiServer) CreateCheckpoint(ctx context.Context, r *types.CreateCheckpo
 	}
 	return &types.CreateCheckpointResponse{}, nil
 }
-```
+{% endhighlight %}
 监管器的监听启动：
 
-```
+{% highlight go %}
 func (s *Supervisor) Start() error {
 	logrus.WithFields(logrus.Fields{
 		"stateDir":    s.stateDir,
@@ -325,18 +325,18 @@ func (s *Supervisor) Start() error {
 	}()
 	return nil
 }
-```
+{% endhighlight %}
 向任务通道发送任务的实现：
-```
+{% highlight go %}
 //很简单，任务计数器加一，向s.tasks通道发送任务
 func (s *Supervisor) SendTask(evt Task) {
 	TasksCounter.Inc(1)
 	s.tasks <- evt
 }
-```
+{% endhighlight %}
 任务的处理handler实现：
 
-```
+{% highlight go %}
 func (s *Supervisor) handleTask(i Task) {
 	var err error
 	//通过任务类型识别调用具体的方法执行函数
@@ -437,7 +437,7 @@ func (c *container) Checkpoint(cpt Checkpoint, checkpointDir string) error {
 	}
 	return err
 }
-```
+{% endhighlight %}
 至此，containerd源码部分实现checkpointCreate的命令的使命完成，接下里就交付给runc实现具体checkpoint创建！
 
 ### 流程总结如下：
