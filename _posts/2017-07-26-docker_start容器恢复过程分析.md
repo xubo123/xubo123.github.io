@@ -258,7 +258,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 ### 第一个步骤：设置容器的基础镜像，容器文件系统的挂载，设置基础文件系统挂载点
 
 #### 挂载文件系统并设置容器基础文件系统挂载点
-![mountFS](/img/moungFS.png)
+![mountFS](/img/mountFS.png)
 
 {% highlight go%}
 func (daemon *Daemon) Mount(container *container.Container) error {
