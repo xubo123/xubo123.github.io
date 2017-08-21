@@ -12,7 +12,7 @@ tags:
 ## contaienrd模块启动容器
 
 在docker源码的学习中，我们曾经学到过docker与containerd模块的通信模式及containerd模块接受到数据后的处理流程，所以containerd如何实现对请求数据的路由这里不再重复描述，只从supervisor中的handleTask进入启动容器的路由函数start。contaienrd只负责管理容器的生命周期，不关心容器的镜像数据，所以containerd的管理对象只是运行中的容器，停止的容器containerd并不关心，所以只要containerd创建一个容器就相当于启动一个容器。
-![ContaienrStart](/img/ContaienrStart.png)
+![ContaienrStart](/img/container_start.png)
 ### containerd启动容器：
 
 {%highlight go %}
