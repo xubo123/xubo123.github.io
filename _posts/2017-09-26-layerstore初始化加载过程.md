@@ -40,7 +40,7 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
-	} //获取文件系统驱动，首先根据优先级priority来得到文件系统驱动，然后调用已经注册好的文件系统驱动初始化函数initFunc来初始化驱动。
+	} //获取文件系统驱动，首先根据优先级priority来得到文件系统驱动，然后调用已经注册好的文件系统驱动初始化函数initFunc来初始化驱动。这里的driver和initFunc映射关系的构建是通过import->init()中的内容来建立的
 	logrus.Debugf("Using graph driver %s", driver)
 
 	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))//构建一个简单的fileMetadataStore对象结构fms，包含root目录。该目录应该为/var/lib/docker/image/aufs/layerdb/
