@@ -114,7 +114,7 @@ static int __init ovl_init(void)
 
 **register_filesystem:将文件系统结构file_system_type添加到内核的文件系统链表file_systems中，以供挂载操作和其它系统调用**
 
-{% hihglight c%}
+{% highlight c%}
 int register_filesystem(struct file_system_type * fs)
 {
 	int res = 0;
