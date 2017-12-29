@@ -204,7 +204,7 @@ struct ovl_config {
 	char *upperdir;
 	char *workdir;
 };
-//overlay特有的目录项对象
+//overlay根目录层次信息结构体
 struct ovl_entry {
     struct dentry *__upperdentry;
     struct ovl_dir_cache *cache;
@@ -376,7 +376,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_d_op = &ovl_dentry_operations;
 
 	err = -ENOMEM;
-	oe = ovl_alloc_entry(numlower);//根据栈的深度来确定ovl_entry（overlay所特有的目录项对象）的所需内存大小,调用offsetof(),然后分配内存返回首地址oe
+	oe = ovl_alloc_entry(numlower);//根据栈的深度来确定ovl_entry（overlay层次信息对象）的所需内存大小,调用offsetof(),然后分配内存返回首地址oe
 	if (!oe)
 		goto out_put_lower_mnt;
 
@@ -397,7 +397,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	kfree(stack);
 
-	root_dentry->d_fsdata = oe;//根目录目录项在overlay文件系统中特有的目录项结构体
+	root_dentry->d_fsdata = oe;//根目录目录项中保存的overlay文件系统根目录层次信息结构体
 
 	ovl_copyattr(ovl_dentry_real(root_dentry)->d_inode,
 		     root_dentry->d_inode);
