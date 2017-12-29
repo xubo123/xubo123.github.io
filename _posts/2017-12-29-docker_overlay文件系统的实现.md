@@ -21,7 +21,7 @@ overlay和ext4之间的区别就在于，ext4这类文件系统的读写就是�
 
 ### docker OVERLAY的安装
 
-在[docker启动容器过程分析](/_post/2017-07-26-docker_start容器恢复过程分析)这一章节中可以看到docker启动容器并安装文件系统的过程。我们分析到rl.layerStore.driver.Get()根据文件系统的驱动进行具体的安装过程，接下来我们将从这个入口开始深入理解overlay文件系统的安装及读写实现。
+在[docker启动容器过程分析](https://github.com/xubo123/xbblfz/edit/master/_posts/2017-07-26-docker_start容器恢复过程分析)这一章节中可以看到docker启动容器并安装文件系统的过程。我们分析到rl.layerStore.driver.Get()根据文件系统的驱动进行具体的安装过程，接下来我们将从这个入口开始深入理解overlay文件系统的安装及读写实现。
 
 {% highlight go %}
 
