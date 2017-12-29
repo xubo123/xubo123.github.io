@@ -137,7 +137,7 @@ int register_filesystem(struct file_system_type * fs)
 #### 挂载
 
 首先，我们看一下将overlay文件系统挂载到merged目录的命令调用：
-{%highlight%}
+{% highlight c%}
 sudo mount -t overlay overlay -o lowerdir=lower,upperdir=upper,workdir=work merged
 {% endhighlight %}
 
@@ -152,7 +152,7 @@ static struct file_system_type ovl_fs_type = {
 	.mount		= ovl_mount,//挂载函数
 	.kill_sb	= kill_anon_super,
 };
-{%endhighlight%}
+{% endhighlight %}
 
 mount字段指定了overlayfs的挂载函数：主要是分配并初始化一个指定文件系统的超级块对象，插入到该文件系统类型的超级块链表，文件系统类型file_system_type的fs_supers字段指向该链表的链表头
 
@@ -181,13 +181,13 @@ struct dentry *mount_nodev(struct file_system_type *fs_type,
 	s->s_flags |= MS_ACTIVE;
 	return dget(s->s_root);
 }
-{%endhighlight%}
+{% endhighlight %}
 
 **填充超级块信息fill_super()**
 
 在介绍填充超级块之前先介绍两个关键的结构体：
 
-{%highlight c %}
+{% highlight c %}
 //描述overlay文件系统的特有信息，包括overlayfs的upper层及lower层的已安装文件系统信息vfsmount及文件名以及work目录的目录项信息
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
@@ -221,7 +221,7 @@ struct ovl_entry {
 {% endhighlight %}
 
 填充超级块信息：
-{%highlight c %}
+{% highlight c %}
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { NULL, NULL };//upperpath定义结构体｛vfsmount(文件系统下子目录已安装的文件系统信息),dentry(目录项)｝
@@ -436,7 +436,7 @@ out_free_config:
 out:
 	return err;
 }
-{%endhighlight%}
+{% endhighlight %}
 
 
 填充超级块对象信息流程图如下：
