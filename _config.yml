@@ -72,6 +72,7 @@ ga_domain: huangxuan.me
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "Coding，Thinking，<br>享受时空每一个未知被揭开的瞬间<br>lfz, lfz's boy"
 sidebar-avatar: /img/lfz.JPG      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-contact: /img/weichat.jpg # weichat contact.
 
 
 
