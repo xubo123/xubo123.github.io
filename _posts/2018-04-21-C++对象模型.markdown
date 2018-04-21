@@ -1,3 +1,14 @@
+---
+layout:     post
+title:      "深度探索C++对象模型"
+subtitle:   "C++对象模型"
+date:       2018-04-21 15:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - C++对象模型
+---
 # 深度探索C++对象模型
 
 ## 第一章：关于对象
