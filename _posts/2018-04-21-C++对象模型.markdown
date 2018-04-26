@@ -1394,4 +1394,251 @@ a+b;
 
 ## 站在对象模型的尖端
 
+### 模版
+三个问题：
 
+1. 模版的声明，当你声明一个模版类时会发生什么事情
+2. 如何实例化类对象，内莲非成员对象以及成员膜拜函数
+3. 如何实例化非成员模版函数，成员模版函数以及静态模版类成员
+
+对于每一个实例化的模版，都会经过mangled处理获取一个独一无二的名字
+
+当我们定义一个指针，指向特定的实例：
+
+```
+Point<float> *ptr = 0;
+//程序中什么也没有发生，一个指向类对象的指针本身并不是一个类对象，没有必要进行实例化
+```
+
+当我们定义一个引用时，编译器会实例化一个实例
+
+```
+Point<float> &ptr = 0;//引用必须绑定在一个实例化的对象上。
+```
+
+一个类对象的定义，也会导致模版的实例化
+
+```
+Point<float> origin;
+```
+
+成员函数在没有被使用之前不应该被实例化，只有在诚意函数被使用的时候，才要求成员函数进行实例化
+
+编译时期只会解析词汇错误和解析错误，而模版的**类型检查**则推迟到模版被实例化的时候进行，这会导致一些非常明显的模版错误不能被及时检测出来：
+
+```
+template <class type>
+class Foo{
+	public:
+		Foo();
+		type val();
+		void val(type);
+	private:
+		type _val;
+};
+
+template <class type> double Foo<type>::bogus_member(){
+	return this->dbx;//Foo类中病没有bogus_member成员函数，这样的明显的错误，编译时期确并不能发现
+}
+```
+
+编译器会将模版的声明放倒一系列lexical tokens解析模版的操作则需要等到真正实例化操作时才开始，会将这些tokens**推送到解析器**进行解析
+
+### 模版中名称决议法
+
+一种是标准的 **“模版声明作用域”**，一种是 **“模版实例化作用域”**
+
+```
+//文件1:
+extern double foo(double);
+
+template <class type>
+class ScopeRules{
+	public:
+		void invariant(){
+			_member = foo(_val);
+		}
+		type type_dependent(){
+			return foo(_member);
+		}
+
+	private:
+		int _val;
+		type _member;
+
+}
+//文件二：
+extern int foo(int);
+//同上ScopeRules模版定义
+ScopeRules<int> sr0；
+sr0.invariant();
+sr0.type_dependent();
+```
+
+在文件一中，_val没有涉及到类型参数type，所以直接按照编译时的**声明作用域**，也就是该**模版声明之前**的作用域，所以直接定位到 double foo(double)；函数，invariant函数调用的就是这个版本的foo函数。
+
+在情况二中，sr0调用函数invariant();该函数匹配是在**声明作用域**内进行匹配，而该作用域只有double foo(double)；函数，所以选中的是这个函数
+
+sr0调用函数type_dependent，其中foo(_member)函数的 _member与类型type相关，所以他的作用域为**实例化作用域（所有文件）**，该作用域有两个函数double foo(double)；,int foo(int)；根据参数匹配会调用int foo(int)这个版本的函数。
+
+#### 成员函数的实例化行为
+
+模版函数实例化的策略目前主要有两种：
+
+1. 编译时期策略
+2. 链接时期策略
+
+问题：
+
+1. 编译器如何找到函数定义
+	* 包含program text file,像头文件一样
+	* 文件命名规则，如我们在Point.h中发现的函数生命，其template program text一定要放置于文件Point.c,Point.cpp中
+2. 编译器如何能够只实例化程序中用到的成员函数
+	* 忽略这个要求，把实例化类的所有成员函数都产生出来
+	* 模拟链接操作，检测哪个函数需要，只为它们生产实例
+3. 编译器如何阻止成员函数在多个.o文件中被实例化？
+	* 从链接器中获得支持，产生多个实例，最后只留下一个
+	* 由使用则引导“模拟链接阶段”的实例化策略。
+
+### 异常处理
+
+C++中异常处理主要由三个语汇组件构成：
+
+1. 一个**throw**语句，它在程序某处发出一个exception
+2. 一个或多个**catch**子句，每一个catch子句都是一个exception handler,提供实际的处理程序
+3. 一个**try**区段
+
+当一个exception抛出的时候，控制权会从函数调用中被释放出来，并寻找一个吻合的catch子句，如果没有吻合者，则调用terminate()例程。不断寻找catch子句的过程叫做**栈展开**,栈展开的过程中，将一个个函数从栈中推出，会先调用该函数中局部对象的析构函数。
+
+exception handling改变了函数在资源管理上的语意，如下面函数含有一块共享内存的locking和unlocking操作，虽然看起来和exception没有什么关系，但在exception之下并不能保证能够正确运行：
+```
+void mumble(void *arena){
+	Point *p = new Point;
+	smLock(arena);//对共享区域加锁
+	...//如果这里出现异常，程序不能正确运行，因为异常处理并不会去对该共享内存进行解锁操作
+	smUnLock(arena);//解锁
+	delete p;
+}
+
+```
+
+所以我们需要添加一个default catch子句，处理正常异常处理机制所不能处理的问题：
+
+```
+void mumble(void *arena){
+	Point *p;
+	p = new Point;//new如果出现异常，new自身会有heap上的析构处理，也就不需要delete操作，所以不需要在try block区域内
+	try{
+		smLock(arena);
+		//...
+	}
+	catch(...){
+		//添加共享内存解锁操作
+		smUnLock(arena);
+		delete p ;
+		throw;
+	}
+	smUnLock(arena);
+	delete p;
+
+}
+
+```
+
+建议：将资源需求封装于一个class object体内，由destructor来释放资源。
+
+#### 对异常处理的支持
+异常发生时，编译器会完成一下事情：
+
+1. 检验发生throw操作的函数
+2. 决定throw操作是否发生在try区段中
+3. 若是，则将异常类型和每个catch子句进行比较
+4. 如果比较后吻合，流程控制交给catch子句
+5. 如果throw的发生并不在try区段中，或没有一个catch子句吻合则
+	* 摧毁所有激活的局部对象
+	* 从堆栈中将该函数弹出“unwind”
+	* 进入到程序堆栈中的下一个函数中去重复上升所有步骤
+
+##### 程序计数器的范围表格：
+
+一个函数可以分为三个区域：
+1. try区段以外的区域，没有局部变量被激活
+2. try区段以外的区域，但有一个以上的局部对象被激活，并且需要析构
+3. try区段以内的区域
+
+如何标示出这三个区域，并使它们对执行期的异常处理系统有所作用，通过“范围表格“，当throw操作发生时，目前程序计数器中的值拿来和对应的"范围表格"进行比对，以决定目前作用中的区域是否在一个try区段中，如果是，则找出相关的catch子句，如果这个exception无法被处理，该函数会从函数栈中推出，程序计数器进行下一轮的比较。
+
+##### 如何将异常类型和catch子句的类型做比较
+
+每一个抛出来的异常，编译器必须产生一个类型描述器，对异常类型进行编码，如果该异常是一个派生类，则编码中必须要包含基类的类型信息，RTTI正是为了支持异常处理而获得的副产品。将每一个异常的类型描述器和catch子句中的类型描述器进行比较，吻合则进入该catch子句
+
+##### 当一个实际对象在程序执行时被抛出，会发生什么？
+
+```
+catch(exPoint p ){
+	//do something;
+	throw;
+}
+```
+
+其中exVertex是exPoint的派生类，假设程序抛出的异常为exVertex异常，则作为**参数传递给catch子句**:
+
+* 由于p是一个对象参数，所以会将抛出的异常exVertex**拷贝构造**给catch子句内部的局部变量
+* 并且non-exPoint的派生部分也会被**切割**掉，而且虚函数表指针也**不会被覆盖**，所以这种类型的异常参数**不支持多态**。
+* 并且catch子句中对异常的修改不会作用到原异常对象
+
+```
+catch(exPoint &p ){
+	//do something;
+	throw;
+}
+```
+这种引用类型的catch参数就**可以支持多态**，不用拷贝构造。
+
+### 执行期类型识别RTTI
+
+#### Type-Safe Downcast保证安全的向下转化操作
+
+C++吹毛求疵的一点就是，它缺乏一种保证安全的downcast,只有在“类型真的可以被适当转换的情况下”才能执行downcast,一个类型安全的downcast必须对指针有所查询，看它是否指向它所表达的对象的真正类型。
+
+目前C++编译器都是将一个指针指向对象的类型放在虚函数表的第一个slot中，被编译器静态设定。
+
+#### dynamic_cast 保证安全的动态转换
+
+dynamic_cast的成本：会首先获取该对象的类型描述器：
+
+```
+((type_info*)(pt->vptr[0]))->_type_descriptor;//type_info就是代表类型描述器的类
+```
+
+获取完这个类型描述器后可以知道**类型转换是否是安全**的，是安全的dynamic_cast则返回被转换过的指针，不是安全的则返回0
+
+#### 引用并不是指针
+
+前面提到，当对一个指针进行转换的时候，会检查是否安全，安全返回转换后的指针，不安全则返回0
+
+* 这里引用则有所区别，当引用的转换是安全的，正常转换并返回
+* 但是当不安全时，不能将引用赋为0，而是抛出一个**bad_cast exception**
+
+#### Typeid运算符
+
+返回一个const reference，类型为type_info,该类定义如下：
+
+```
+class type_info{
+public:
+	virtual ~type_info();
+	bool operator == (const type_info&) const;
+	bool operator!=(const type_info&) const;
+	bool before(const type_info&) const;//用于排序
+
+	const char* name() const;//传回class的原名称
+private:
+	type_info(const type_info&);
+	type_info& operator=(const type_info&);
+
+	//data_member
+ }
+```
+
+typeid也可使用于**内建数据类型**，只不过和多态不同的是，内建类型的type_info是在**编译期静态**取得的，多态类型的指针或引用的type_info是在**执行期动态**取得的。
