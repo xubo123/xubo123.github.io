@@ -302,7 +302,7 @@ evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) err
         command.Volume:      volume,
         command.Workdir:     workdir,
     }
-{% endhighlght %}
+{% endhighlight %}
 
 ## RUN命令流程分析
 dispatch根据每一条命令执行对应的处理handler函数，这里我们对RUN命令的处理函数进行分析，根据evaluateTable处理表可知RUN命令的处理函数为run:
