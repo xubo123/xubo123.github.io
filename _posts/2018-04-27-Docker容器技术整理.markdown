@@ -199,7 +199,7 @@ runc的实现步骤：
 ```
 配置cmd的参数CLONE_NEWXXX设置Namespace，然后执行init初始化进程，通过调用execve(const char * filename,char * argv[],char * const envp[]);来替换第一个创建的进程，将init初始化进程作为该容器的PID为1的进程:
 
-![docker_1](/img/docker_1.png)
+![docker_1](/img/docker_1.jpeg)
 
 ### 3.2增加资源限制
 3.1 小节已经成功创建了容器进程，并且设置好了六大命名空间，现在对该进程进行资源限制

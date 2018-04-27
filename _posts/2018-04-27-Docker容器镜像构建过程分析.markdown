@@ -1,0 +1,522 @@
+---
+layout:     post
+title:      "docker源码-容器镜像构建分析"
+subtitle:   "Dockerfile容器镜像构建分析"
+date:       2018-04-27 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - docker源码
+---
+# Docker容器镜像构建过程分析
+
+前面的流程同样是client先配置参数，然后发送post请求，将参数信息配置到json数据中，然后服务器端启动后，initRouter已经将build命令的路由器初始化，所以该build命令的客户端请求就会在服务器端执行对应的函数，经buildRouter分析，将会调用/api/server/build/build_routes.go中的postBuild函数。该函数主要是通过参数信息配置构建选项数据buildOption,该选项数据，包括对该容器的cgroup资源限制，nocache是否适用缓存等选项。配置好选项后，将选项作为参数，调用BuildFromContext函数：
+
+![build_image](/img/build_image.png)
+
+{% highlight go %}
+
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+    if buildOptions.Squash && !bm.backend.HasExperimental() {
+        return "", apierrors.NewBadRequestError(errors.New("squash is only supported with experimental mode"))
+    }
+    buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+    if err != nil {
+        return "", err
+    }
+    defer func() {
+        if err := buildContext.Close(); err != nil {
+            logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+        }
+    }()
+
+    if len(dockerfileName) > 0 {
+        buildOptions.Dockerfile = dockerfileName
+    }
+    b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)//新建镜像构建器对象build,也就是docker源码分析中的buildFile对象（构建车间）,同时完成对Dockerfile的解析，解析到一个Node结构体里面去
+    if err != nil {
+        return "", err
+    }
+    return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)//启动镜像构建器，开始镜像构建
+}
+//dockerfile解析后的结构
+type Node struct {
+    Value      string          // actual content
+    Next       *Node           // the next item in the current sexp
+    Children   []*Node         // the children of this sexp
+    Attributes map[string]bool // special attributes for this node
+    Original   string          // original line used before parsing
+    Flags      []string        // only top Node should have this set
+    StartLine  int             // the line in the original dockerfile where the node begins
+    EndLine    int             // the line in the original dockerfile where the node ends
+}
+//镜像构建器对象
+type Builder struct {
+    options *types.ImageBuildOptions
+
+    Stdout io.Writer
+    Stderr io.Writer
+    Output io.Writer
+
+    docker    builder.Backend
+    context   builder.Context
+    clientCtx context.Context
+    cancel    context.CancelFunc
+
+    dockerfile       *parser.Node
+    runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
+    flags            *BFlags
+    tmpContainers    map[string]struct{}
+    image            string // imageID
+    noBaseImage      bool
+    maintainer       string
+    cmdSet           bool
+    disableCommit    bool
+    cacheBusted      bool
+    allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+    directive        parser.Directive
+
+    // TODO: remove once docker.Commit can receive a tag
+    id string
+
+    imageCache builder.ImageCache
+    from       builder.Image
+}
+{% endhighlight %}
+
+## 镜像构建车间开始工作
+上述部分完成了镜像构建器对象的创建，并且完成对dockerfile的解析工作接下来就是启动镜像构建的工作，开始构建容器镜像:
+
+{% highlight go %}
+
+func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+    b.Stdout = stdout
+    b.Stderr = stderr
+    b.Output = out
+
+    // If Dockerfile was not parsed yet, extract it from the Context
+    if b.dockerfile == nil {
+        if err := b.readDockerfile(); err != nil {
+            return "", err
+        }
+    }
+
+    repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
+    if err != nil {
+        return "", err
+    }
+
+    if err := b.processLabels(); err != nil {
+        return "", err
+    }
+
+    var shortImgID string
+    total := len(b.dockerfile.Children)
+    for _, n := range b.dockerfile.Children {
+        if err := b.checkDispatch(n, false); err != nil {
+            return "", perrors.Wrapf(err, "Dockerfile parse error line %d", n.StartLine)
+        }
+    }//检查每一行DockerFile命令是否有对应的处理handler
+
+    for i, n := range b.dockerfile.Children {
+        select {
+        case <-b.clientCtx.Done():
+            logrus.Debug("Builder: build cancelled!")
+            fmt.Fprint(b.Stdout, "Build cancelled")
+            return "", errors.New("Build cancelled")
+        default:
+            // Not cancelled yet, keep going...
+        }
+
+        if err := b.dispatch(i, total, n); err != nil {
+            if b.options.ForceRemove {
+                b.clearTmp()
+            }//调用每一行的处理handler进行命令处理
+            return "", err
+        }
+
+        shortImgID = stringid.TruncateID(b.image)
+        fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
+        if b.options.Remove {
+            b.clearTmp()
+        }
+    }
+
+    // check if there are any leftover build-args that were passed but not
+    // consumed during build. Return a warning, if there are any.
+    leftoverArgs := []string{}
+    for arg := range b.options.BuildArgs {
+        if !b.isBuildArgAllowed(arg) {
+            leftoverArgs = append(leftoverArgs, arg)
+        }
+    }
+
+    if len(leftoverArgs) > 0 {
+        fmt.Fprintf(b.Stderr, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+    }
+
+    if b.image == "" {
+        return "", errors.New("No image was generated. Is your Dockerfile empty?")
+    }
+
+    if b.options.Squash {
+        var fromID string
+        if b.from != nil {
+            fromID = b.from.ImageID()
+        }
+        b.image, err = b.docker.SquashImage(b.image, fromID)
+        if err != nil {
+            return "", perrors.Wrap(err, "error squashing image")
+        }
+    }
+
+    imageID := image.ID(b.image)
+    for _, rt := range repoAndTags {
+        if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
+            return "", err
+        }
+    }
+
+    fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
+    return b.image, nil
+}
+
+{% endhighlight %}
+
+## Dockerfile命令解析并执行对应操作
+第二部分代码是具体执行DockerFile中的命令，调用每一种命令的执行handler函数，dispatch来分派这些命令的执行函数：
+
+{% highlight go %}
+func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
+    cmd := ast.Value
+    upperCasedCmd := strings.ToUpper(cmd)
+
+    // To ensure the user is given a decent error message if the platform
+    // on which the daemon is running does not support a builder command.
+    if err := platformSupports(strings.ToLower(cmd)); err != nil {
+        return err
+    }
+
+    attrs := ast.Attributes
+    original := ast.Original
+    flags := ast.Flags
+    strList := []string{}
+    msg := fmt.Sprintf("Step %d/%d : %s", stepN+1, stepTotal, upperCasedCmd)
+
+    if len(ast.Flags) > 0 {
+        msg += " " + strings.Join(ast.Flags, " ")
+    }
+
+    if cmd == "onbuild" {
+        if ast.Next == nil {
+            return errors.New("ONBUILD requires at least one argument")
+        }
+        ast = ast.Next.Children[0]
+        strList = append(strList, ast.Value)
+        msg += " " + ast.Value
+
+        if len(ast.Flags) > 0 {
+            msg += " " + strings.Join(ast.Flags, " ")
+        }
+
+    }
+
+    // count the number of nodes that we are going to traverse first
+    // so we can pre-create the argument and message array. This speeds up the
+    // allocation of those list a lot when they have a lot of arguments
+    cursor := ast
+    var n int
+    for cursor.Next != nil {
+        cursor = cursor.Next
+        n++
+    }
+    msgList := make([]string, n)
+
+    var i int
+    
+    envs := b.runConfig.Env
+    for key, val := range b.options.BuildArgs {
+        if !b.isBuildArgAllowed(key) {
+            continue
+        }
+        envs = append(envs, fmt.Sprintf("%s=%s", key, *val))
+    }
+    for ast.Next != nil {
+        ast = ast.Next
+        var str string
+        str = ast.Value
+        if replaceEnvAllowed[cmd] {//判断该命令cmd是否存在对应的handler～replaceEnvAllowed[]包括：Env,Label,Add,Copy,Workdir,Expose,Volume,User,StopSignal,Arg
+            var err error
+            var words []string
+
+            if allowWordExpansion[cmd] {//allowWordExpansion只包括Expose
+                words, err = ProcessWords(str, envs, b.directive.EscapeToken)
+                if err != nil {
+                    return err
+                }
+                strList = append(strList, words...)
+            } else {
+                str, err = ProcessWord(str, envs, b.directive.EscapeToken)//对命令不知道进行了什么处理，然后添加到strList中去
+                if err != nil {
+                    return err
+                }
+                strList = append(strList, str)
+            }
+        } else {
+            strList = append(strList, str)
+        }
+        msgList[i] = ast.Value
+        i++
+    }
+
+    msg += " " + strings.Join(msgList, " ")
+    fmt.Fprintln(b.Stdout, msg)
+
+    if f, ok := evaluateTable[cmd]; ok {//获取命令cmd对应的handler处理函数f,然后调用该函数
+        b.flags = NewBFlags()
+        b.flags.Args = flags
+        return f(b, strList, attrs, original)//调用命令处理函数
+    }
+
+    return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
+}
+//每一个命令对应的handler处理函数表
+evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
+        command.Add:         add,
+        command.Arg:         arg,
+        command.Cmd:         cmd,
+        command.Copy:        dispatchCopy, // copy() is a go builtin
+        command.Entrypoint:  entrypoint,
+        command.Env:         env,
+        command.Expose:      expose,
+        command.From:        from,
+        command.Healthcheck: healthcheck,
+        command.Label:       label,
+        command.Maintainer:  maintainer,
+        command.Onbuild:     onbuild,
+        command.Run:         run,
+        command.Shell:       shell,
+        command.StopSignal:  stopSignal,
+        command.User:        user,
+        command.Volume:      volume,
+        command.Workdir:     workdir,
+    }
+{% endhighlght %}
+
+## RUN命令流程分析
+dispatch根据每一条命令执行对应的处理handler函数，这里我们对RUN命令的处理函数进行分析，根据evaluateTable处理表可知RUN命令的处理函数为run:
+
+{% highlight go%}
+func run(b *Builder, args []string, attributes map[string]bool, original string) error {
+    if b.image == "" && !b.noBaseImage {
+        return errors.New("Please provide a source image with `from` prior to run")
+    }//先判断执行RUN命令，是否有基础镜像或父镜像的存在。因为RUN命令是必须要在一个镜像的基础之上执行
+
+    if err := b.flags.Parse(); err != nil {
+        return err
+    }
+
+    args = handleJSONArgs(args, attributes)//处理json格式的参数
+
+    if !attributes["json"] {
+        args = append(getShell(b.runConfig), args...)
+    }
+    config := &container.Config{
+        Cmd:   strslice.StrSlice(args),//容器开始要执行的命令
+        Image: b.image,
+    }//生成一个容器配置文件
+
+    // stash the cmd
+    cmd := b.runConfig.Cmd//获取要RUN的命令
+    if len(b.runConfig.Entrypoint) == 0 && len(b.runConfig.Cmd) == 0 {
+        b.runConfig.Cmd = config.Cmd
+    }
+
+    // stash the config environment
+    env := b.runConfig.Env//获取环境变量
+
+    defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+    defer func(env []string) { b.runConfig.Env = env }(env)
+
+    cmdBuildEnv := []string{}
+    configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
+    for key, val := range b.options.BuildArgs {
+        if !b.isBuildArgAllowed(key) {
+            continue
+        }
+        if _, ok := configEnv[key]; !ok && val != nil {
+            cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, *val))
+        }
+    }
+
+    // derive the command to use for probeCache() and to commit in this container.
+
+    saveCmd := config.Cmd
+    if len(cmdBuildEnv) > 0 {
+        sort.Strings(cmdBuildEnv)
+        tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
+        saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
+    }
+
+    b.runConfig.Cmd = saveCmd
+    hit, err := b.probeCache()//看是否能够复用本地缓存
+    if err != nil {
+        return err
+    }
+    if hit {
+        return nil
+    }
+//不能复用
+    // set Cmd manually, this is special case only for Dockerfiles
+    b.runConfig.Cmd = config.Cmd
+    // set build-time environment for 'run'.
+    b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
+    // set config as already being escaped, this prevents double escaping on windows
+    b.runConfig.ArgsEscaped = true
+
+    logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
+
+    cID, err := b.create()//先创建一个容器
+    if err != nil {
+        return err
+    }
+
+    if err := b.run(cID); err != nil {
+        return err
+    }//运行该容器
+
+    // revert to original config environment and set the command string to
+    // have the build-time env vars in it (if any) so that future cache look-ups
+    // properly match it.
+    b.runConfig.Env = env
+    b.runConfig.Cmd = saveCmd
+    return b.commit(cID, cmd, "run")//提交该容器
+}
+
+
+{% endhighlight %}
+
+## 缓存复用的过程：
+{% highlight go%}
+func (b *Builder) probeCache() (bool, error) {
+    c := b.imageCache
+    if c == nil || b.options.NoCache || b.cacheBusted {
+        return false, nil
+    }
+    cache, err := c.GetCache(b.image, b.runConfig)//根据当前RUN命令的父镜像ID，以及RUN配置信息来匹配镜像
+    if err != nil {
+        return false, err
+    }
+    if len(cache) == 0 {//匹配失败
+        logrus.Debugf("[BUILDER] Cache miss: %s", b.runConfig.Cmd)
+        b.cacheBusted = true
+        return false, nil
+    }
+
+    fmt.Fprint(b.Stdout, " ---> Using cache\n")
+    logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
+    b.image = string(cache)//匹配成功，直接使用本地的父镜像
+
+    return true, nil
+}
+{% endhighlight %}
+
+## 缓存匹配的过程：
+{% highlight go%}
+func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (string, error) {
+    imgID, err := ic.localImageCache.GetCache(parentID, cfg)//在本地镜像缓存中，找到父镜像匹配且运行配置信息cfg匹配的镜像，返回镜像ID
+    if err != nil {
+        return "", err
+    }
+    if imgID != "" {
+        for _, s := range ic.sources {
+            if ic.isParent(s.ID(), image.ID(imgID)) {
+                return imgID, nil
+            }
+        }
+    }
+
+    var parent *image.Image
+    lenHistory := 0
+    if parentID != "" {
+        parent, err = ic.store.Get(image.ID(parentID))
+        if err != nil {
+            return "", errors.Wrapf(err, "unable to find image %v", parentID)
+        }
+        lenHistory = len(parent.History)
+    }
+
+    for _, target := range ic.sources {
+        if !isValidParent(target, parent) || !isValidConfig(cfg, target.History[lenHistory]) {
+            continue
+        }
+
+        if len(target.History)-1 == lenHistory { // last
+            if parent != nil {
+                if err := ic.store.SetParent(target.ID(), parent.ID()); err != nil {
+                    return "", errors.Wrapf(err, "failed to set parent for %v to %v", target.ID(), parent.ID())
+                }
+            }
+            return target.ID().String(), nil
+        }
+
+        imgID, err := ic.restoreCachedImage(parent, target, cfg)
+        if err != nil {
+            return "", errors.Wrapf(err, "failed to restore cached image from %q to %v", parentID, target.ID())
+        }
+
+        ic.sources = []*image.Image{target} // avoid jumping to different target, tuned for safety atm
+        return imgID.String(), nil
+    }
+
+    return "", nil
+}
+{% endhighlight %}
+
+## 匹配父镜像ID和运行配置信息的过程:
+
+{% highlight go%}
+func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *containertypes.Config) (*image.Image, error) {
+    // Loop on the children of the given image and check the config
+    //定义一个父镜像imgID和config配置信息匹配函数
+    getMatch := func(siblings []image.ID) (*image.Image, error) {
+        var match *image.Image
+        for _, id := range siblings {//遍历所有的父镜像的ID？
+            img, err := imageStore.Get(id)//从imageStore中根据父镜像imgID来获取镜像Image结构体，保护镜像相关的信息
+            if err != nil {
+                return nil, fmt.Errorf("unable to find image %q", id)
+            }
+
+            if compare(&img.ContainerConfig, config) {//然后将获取到的镜像img结构体得到容器配置信息，然后与我们目前所构建的镜像进行比较，如果比较成功，则匹配成功
+                // check for the most up to date match
+                if match == nil || match.Created.Before(img.Created) {
+                    match = img
+                }
+            }
+        }
+        return match, nil
+    }
+
+    // In this case, this is `FROM scratch`, which isn't an actual image.
+    if imgID == "" {
+        images := imageStore.Map()
+        var siblings []image.ID
+        for id, img := range images {
+            if img.Parent == imgID {
+                siblings = append(siblings, id)
+            }
+        }
+        return getMatch(siblings)
+    }
+
+    // find match from child images
+    siblings := imageStore.Children(imgID)
+    return getMatch(siblings)//调用匹配函数，进行父镜像ID和容器配置信息的匹配
+}
+
+{% endhighlight %}
+
+
+
+
