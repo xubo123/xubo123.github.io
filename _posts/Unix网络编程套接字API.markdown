@@ -1,0 +1,766 @@
+---
+layout:     post
+title:      "Unix网络编程：套接字API"
+subtitle:   "Unix网络编程"
+date:       2018-05-07 12:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - Unix网络编程
+---
+# Unix网络编程：套接字API
+
+## 第一章 传输层TCP,UDP和SCTP
+
+TCP/IP协议概貌：
+
+![unix_socket_1](/img/unix_socket_1.png)
+
+### 1.1SCTP:流控制传输协议
+SCTP在客户和服务器之间提供关联，并像TCP那样给应用层提供可靠性，排序，流量控制以及全双工的数据传输服务。SCTP使用“关联”取代“连接”是为了避免：一个连接只涉及到两个IP地址之间的通信，一个关联指代可能因为多宿而涉及不止一个地址的两个系统之间的一次通信回话。
+
+与TCP不同在于：
+* SCTP面向消息
+* SCTP能够在所连接的端点之间提供多个流
+* SCTP提供多宿特性
+
+### 1.2TCP连接的建立和终止
+
+这一小节帮助大家理解connect,accept,close函数并使用netstat调试TCP应用程序。
+
+#### 三次握手
+
+1. 服务器端必须准备好接受外来的连接，这通过调用socket、bind和listen来完成，称为 “被动打开”
+2. 客户端通过connect进行"主动打开",这将引起客户端向服务器端发送一个SYN报文段.告诉服务器初始序列号，SYN一般只含有一个IP头部，一个TCP头部，及可能有的TCP选项。
+3. 服务器端必须确认SYN,同时自己也得发一个SYN，SYN和ACK合并在一个报文段发送
+4. 客户端必须确认服务器SYN
+
+![unix_socket_2](/img/unix_socket_2.png)
+
+#### TCP选项
+
+* MSS选项:TCP发送的SYN报文段中包含这个选项表示，通知服务器它的最大报文段大小为MSS
+* 窗口规模大小:流量窗口，最大为65535，因为TCP头部只占16位
+* 时间戳大小
+
+#### TCP连接关闭
+![unix_socket_3](/img/unix_socket_3.png)
+
+#### TCP状态转换图
+
+![unix_socket_4](/img/unix_socket_4.png)
+
+![unix_socket_5](/img/unix_socket_5.png)
+
+#### TIME_WAIT的作用：
+TIME_WAIT一般维持2MSL（报文段生命期*2）
+
+* 可靠实现TCP全双工连接的终止：假设最后客户端发送的ACK丢失，服务器端将重发最终的FIN，客户端要一直**维护这种可以接受FIN的状态，然后重发ACK**。否则它将响应一个**RST**报文段，因为如果没有TIME_WAIT则认为客户端该连接已经彻底关闭。
+* 允许老的重复报文段在网络中消逝，在TIME_WAIT阶段**防止客户端发起该关闭连接的化身**（IP地址和端口号相同的连接）。因为如果出现该连接，可能之前 **“迷途漫游”**的报文段（ACK,FIN）会到达该连接导致，该化身接收到错误的报文段。这也就是为什么要设置**2MSL**，使得两端的迷途漫游的报文段**会在网络中消逝**
+
+### 1.3SCTP关联的建立和终止
+
+#### 四次握手
+
+1. 同样服务器通过socket,bind,listen函数作为接受连接的准备
+2. 客户通过调用connect发送一个SCTP的**INIT消息**（包括IP地址清单，初始序列号，起始标志...）
+3. 服务器端对**INIT消息发送一个ACK**，ACK包含（服务器IP地址清单，初始序列号，起始标志，以及一个**state cookie**）
+4. 客户端尝试根据cookie来发送信息，发送一个**COOKIE ECHO消息**来尝试进行带有cookie的数据发送。
+5. 服务器端根据客户端发送过来的COOKIE来**ACK消息确认cookie是否正确**。
+
+![unix_socket_6](/img/unix_socket_6.png)
+
+#### 关联终止
+
+* SCTP不像TCP那样允许半关闭的关联，当一端关闭某个关联时，另一端必须停止从应用进程传入新的用户数据并发送。
+* 关联关闭请求的接受端只将已经排队的数据发送完后，执行关联的关闭
+
+![unix_socket_7](/img/unix_socket_7.png)
+
+#### 状态转换图
+
+![unix_socket_8](/img/unix_socket_8.png)
+
+![unix_socket_9](/img/unix_socket_9.png)
+
+### 1.4 套接字端口号与并发服务器
+
+当服务器通过调用accept创建**新的套接字**与客户端建立连接并调用**fork来处理客户端数据**，当有多个客户同时和服务器建立请求后，会有**多个子进程和多个套接字**来处理连接中的数据。但这些套接字都是**通过相同的端口**进行通信，端口是如何通过数据信息来将每个连接的数据转发到对应的套接字fd中进行通信的？这就是通过**套接字对**来进行连接数据的分流
+
+* 每个已连接的套接字都保存一组**套接字对信息**，其中包括**源主机IP地址**(一个服务器端可能有**多个IP地址**供不同进程使用,多宿)及端口信息，还包括对端地址的端口信息
+* {12.106.32.254:21,206.168.112.219:1500},其中12.106.32.254:21为源机的IP地址和端口号，206.168.112.219:1500为目的端IP地址和端口号。
+* 还可以使用通配符来表示{\*:21,\* :\* },这就表示监听21端口来自任何IP地址的数据。
+
+![unix_socket_26](/img/unix_socket_26.png)
+
+### 1.5 缓冲区大小及限制
+
+**IPv4**
+
+- 1.IPv4最大大小是2^16（65535，包括IPv4首部，实际载荷为65535-20）
+
+
+- 2.IPV4最小链路MTU为68，因为IPv4首部=20字节+40多字节的选项部分
+- 3.路径MTU：两个主机之间的路径中最小的MTU
+- 4.分片：这些分片在到达最终目的之前通常不重组
+  - IPv4与IPv6的区别：
+    - IPv4：主机对其产生和路由对其转发的数据报进行分片
+    - IPv6：主机对其产生的数据报分片，路由不对其转发的数据报进行分片（路由对其产生的还是会分片的）
+  - DF位：置位表示，不允许分片
+    - IPv4：当路由器收到一个超出其外出链路MTU大小且设置了DF位的IPv4数据报时，将产生一个ICMPv4（目的不可达，需分片但DF已置位）
+    - IPv6：隐含一个DF位（IPv6本来就不允许路由转发时分片），将产生一个ICMPv6（分组太大）
+- 5.DF位的作用：发现路径MTU
+- 7.最小重组缓冲区大小，表示IP的任何实现版本都必须保证的最小数据报大小（即双方还没开始交换MSS大小）
+  - IPv4：576字节
+  - IPv6：1500字节
+- 8.MSS：用于向对端TCP通告对端在每个分节中能发送的最大TCP数据量，目的是告诉对端其重组缓冲区大小的实际值，从而避免分片
+  - 通常值：MTU-IP首部固定长度-TCP首部固定长度（以太网为：1500-20-20=1460）
+  - 实现：通过SYN分节（第一次和第二次握手）上的MSS选项设置
+  - 最大值：2^16（65535）字节
+
+### 1.6 TCP输出
+
+![unix_socket_27](/img/unix_socket_27.png)
+
+这里描述的是应用进程写数据到一个TCP套接字中时发生的步骤。
+
+这里涉及以下知识点：
+
+- 1.每一个TCP套接字都有一个发送缓冲区，由**SO_SNDBUF**更改大小
+- 2.write调用发生的事情：
+  - 内核从**应用进程的缓冲区**中复制所有数据写到**套接字的发送缓冲区**
+  - 如果套接字缓冲区无法容下，可能原因：
+    - 应用进程的缓冲区大于套接字的发送缓冲区
+    - 套接字的发送缓冲区已有其他数据
+  - 如果无法容下，进程被睡眠
+  - 内核不从write返回（假设是阻塞的套接字） ，直到应用进程的缓冲区所有的数据都复制到套接字缓冲区中
+  - 如果write返回，表示当前进程数据**已经复制到套接字缓冲区**，进程缓冲区可继续使用。但**不表示对端已经收到**
+- 3.TCP套接字缓冲区需要**保留已经发送的数据**，直到收到该数据的ACK
+
+### 1.7 UDP输出
+
+![unix_socket_28](/img/unix_socket_28.png)
+
+这里描述的是应用进程写数据到一个UDP套接字中时发生的步骤。
+
+这里涉及以下知识点：
+
+- 1.UDP有发送缓冲区（通过SO_SNDBUF设置）,实际上不存在（因此上图用虚线），它表示的只是该UDP套接字的**数据报上限**。
+- 2.应用程序写一个**大于套接字发送缓冲区大小的数据报**，内核返回进程**EMSGSIZE**错误
+- 3.因UDP不可靠，**不必保留应用进程的数据副本(和TCP的区别)**，因此无需一个真正的发送缓冲区
+- 4.数据保存的过程：应用进程的数据在沿协议向下传递时，通常被复制到某种格式的一个内核缓冲区中，当数据发送后，**副本被链路层丢弃**
+- 5.UDP的**write成功返回**表示所写的数据报或其所有分段已经被**加入数据链路层的输出队列**
+- 6.如果链路层输出队列没有足够的空间存放数据报或分段，返回**ENOBUFS错误**到进程
+
+## 第二章 套接字编程
+
+### 2.1 套接字地址结构：
+
+#### IPv4地址结构（16个字节）：
+```
+struct in_addr{
+    in_addr_t s_addr;//32bit IPv4地址
+}；
+struct sockaddr_in{
+    unit8_t sin_len;//Ipv4地址结构长度
+    sa_family_t sin_family;//Ipv4地址族：AF_INET，posix
+    in_port_t sin_port;//16位表示端口号,posix
+    struct in_addr sin_addr;//表示地址,posix
+    char sin_zero[8];//暂不使用
+};
+```
+
+#### 通用套接字地址结构
+
+我们将套接字地址传递给套接口函数时，总是**通过指针**来传递，即传递的是一个指向结构的指针。
+
+为了兼容Ipv4,unix域，数据链路等不同协议类型的socket地址，定义了一个通用地址结构来存储这些地址信息：
+
+```
+struct sockaddr {
+    unit8_t sa_len;//协议长度
+    sa_family_t sa_family;//协议类型
+    char sa_data[14];//协议所指向的地址
+
+}
+```
+从应用程序开发人员的观点看，这些通用的套接字结构的唯一用途就是给指向特定协议的地址结构的**指针转换类型**。
+
+#### IPv6地址结构(28个字节)：
+
+```
+struct in6_addr{
+    unit8_t s6_addr[16];//16*8=128bit的地址结构
+}
+#define SIN6_LEN
+
+struct sockaddr_in6{
+    unit8_t sin6_len;//Ipv6地址结构长度
+    sa_family_t sin6_family;//Ipv6地址结构的地址族:AF_INET6，posix
+    sa_family_t sin6_port;//16位表示端口号,posix
+
+    uint32_t sin6_flowinfo;//流信息:低20位是流标签，高12位保留
+    struct in6_addr sin6_addr;//表示地址,posix
+    uint32_t sin6_scope_id;//域接口集合
+};
+```
+
+#### 套接字地址结构比较
+
+![unix_socket_10](/img/unix_socket_10.png)
+
+### 2.2 值－结果参数
+
+1. 从**进程到内核**传递套接字地址结构的有三个函数:bing,connect,sendto
+
+    ```
+    struct sockaddr_in serv;
+    connect(sockfd,(SA*) &serv,sizeof(serv));//传递套接字地址结构地址，和该结构数据的长度
+    ```
+
+2. 从**内核到进程**传递套接字地址结构的函数有四个：accept,recvfrom,getsockname,getpeername
+
+    ```
+    struct sockaddr_un cli;
+    socklen_t len;
+    len = sizeof(cli);
+    getpeername(unixfd,(SA*)&cli,&len);//传递一个套接字地址结构对象进去cli，并告诉内核该结构的数据长度为len ,内核返回函数想要的地址结构到cli，并告诉进程该地址结构的数据长度，同样写到&len
+    ```
+
+    * 类似上面这种，参数将**一定信息传入函数**，函数返回时又**将结果返回到参数数据中**的类型就叫做**值－结果参数**
+    * 这种具有值－结果参数的函数还有：select,getsockopt,recvmsg,ifconf,sysctl
+
+### 2.3 字节排序函数
+
+对于一个整数，内存中存储这两个字节又两种办法：
+
+* 一种是将低字节存储在起始地址，称为**小端字节序**
+* 另一种方法是将高序字节存储在起始地址。称为**大端字节序**。
+
+* **主机字节序**：对于某一个系统内部使用的字节序叫做主机字节序，系统使用大端字节序还是小端字节序并没有标准。
+* **网络字节序** ：网际协议使用的字节序是网络字节序，**网际协议**在处理这些数据的时候使用的是**大端字节序**。
+
+为了将网络字节序和主机字节序进行协调，然后转换，我们定义如下四个函数来进行字节序的转换：
+
+```
+#include <netinet/in.h>
+
+//主机字节序向网络字节序进行转换
+unit16_t htons(unit16_t host16bitvalue);
+unit32_t htons(unit32_t host32bitvalue);
+
+//h代表主机host,n代表网络net,s代表短整形short,l代表长整型long
+
+//网络字节序向主机字节序进行转换
+unit16_t ntohs(unit16_t net16bitvalue);
+unit32_t ntohs(unit32_t net32bitvalue);
+```
+
+### 2.4 字节操作函数
+
+对字节进行设置，拷贝，比较操作的有两组函数：
+* 一组以b开头（byte）
+* 一组以mem开头(memory)
+
+```
+#include <strings.h>
+void bzero(void *dest,size_t nbytes);//将目标中的指定数目字节置为0
+void bcopy(const void *src,void *dest,size_t nbytes);//将指定数目的字节从源地址拷贝到目标地址
+void bcmp(const void *ptr1,const void *ptr2,size_t nbytes);//比较两个字节串，相同返回0，否则返回非0
+
+#include<string.h>
+
+void *memset(void *dest,int c,size_t len);//将目标指定数目字节置为c
+void *memcpy(void *dest,const const void *src,size_t nbytes);//将源地址的指定数目的字节拷贝到目标。
+void *memcmp(const void *ptr1,const void *ptr2,size_t nbytes)//同bcmp,但ptr1>ptr2返回大于0的数，ptr1<ptr2返回小于0的数。
+
+```
+
+* memcpy的参数顺序和**赋值语句**相同：dst = src;
+* memset最后两个参数的顺序：memXXX的函数都**要求有一个长度，且它总是最后一个参数**。
+
+
+### 2.5 网络地址转换函数
+这一组函数将网络字节序的二进制值和ASCLL字符串（易读性）之间进行转换：
+
+```
+#include <arpa/inet.h>
+//a代表ascll码，n代表网络字节序的二进制
+
+int inet_aton(const char *strptr,struct in_addr *addrptr);//将strptr指向的C字符串"206.168.112.96"转换为网络字节序二进制值到addrptr存储
+//返回1时，串有效，返回0，串有错
+
+in_addr_t inet_addr(const char *strptr);//同上，进行字符串到二进制的转换，直接返回结果32位二进制的值。
+//不推荐使用
+
+char *inet_ntoa(struct in_addr inaddr);//将二进制值转化为十进制的ASCLL码字符串，参数并非是指向结构的指针，而是结构本身
+//返回转换后的字符串
+```
+
+* inet_addr函数和inet_aton的**区别**在于，当转换出错时，inet_addr会返回一个**全为1的32位二进制值**，所以我们不能用inet_addr处理十进制字符串**"255.255.255.255"广播地址**
+
+
+还有一组比较新的网络地址转换函数：inet_pton,inet_ntop(n代表numeric，p代表presentation（ASCLL串）)
+
+```
+#incldue<arpa/inet.h>
+
+int inet_pton(int family,const char *strptr,void *addrptr);//将ASCLL串转换为二进制，存放到addrptr
+
+char *inet_pton(int family,void *addrptr,const char *strptr,size_t len);//将二进制addrptr转换为ASCLL串返回，也就是存放在strptr中
+```
+
+地址转换函数总结：
+
+![unix_socket_11](/img/unix_socket_11.png)
+
+
+* **sock_ntop()**:由于inet_pton和inet_pton都需要**协议相关的信息，还有特定的地址结构**，会使我们的代码具有局限性，不具有**通用性**，为了解决这个问题，我们引入sock_ntop()函数来使用**通用地址结构作参数**，然后分析地址结构信息调用具体的地址转换函数：
+
+```
+#include "unp.h"
+
+char *sock_ntop(const struct sockaddr *sockaddr,socklen_t addrlen);//使用通用地址结构sockaddr,函数内部，对该地址结构信息进行分析然后调用对应的地址转换函数
+
+```
+
+###2.6 对字节流套接口上的读写操作
+
+* 字节流 **套接字**上的读read写write操作所表现出的行为 **不同于通常的文件I/O**。字节流套接字上的读或写输入或输出的字节数可能比要求的数量少，这是因为内核中套接口的 **缓冲区可能已经达到上限**，此时需要调用者 **再次调用**read和write函数来输入或输出剩余的字节。
+
+我们对字节流套接口进行读或写操作时调用下面的三个函数：
+
+```
+ssize_t readn(int fd,void *buff,size_t nbytes);//从套接字读取指定数目的字节到buff中
+ssize_t writen(int fd,const void *buff,size_t nbytes);//将buff中的数据写入指定数目的字节到fd的文件中
+ssize_t readline(int fd,void *buff,size_t maxlen);//逐行读取数据到buff中，但读取的最大数目字节数为maxlen
+
+```
+
+* readn和writen都是对read和write进行**封装**，通过**重复调用read和write**来读取或写入**指定数目**的字节内容
+* readline则是调用read来**一个一个字节读取**，碰到'\n'或达到maxlen长度停止读取数据,因为对read多次重复调用，所以**效率非常低**
+* 这三个函数会对**EINTR**（系统调用被一个捕获的信号中断）进行检查，发生这种错误**继续进行**读写操作
+
+![unix_socket_12](/img/unix_socket_12.png)
+![unix_socket_13](/img/unix_socket_13.png)
+![unix_socket_14](/img/unix_socket_14.png)
+
+
+## 3.基本TCP套接口编程
+
+* 本部分讲解编写一个完整的TCP客户和服务器程序所需要的基本套接口函数。
+* 还包括并发服务器，是在同时有大量的客户连接到同一服务器上时用于提供并发性的一种常用的Unix
+
+### 3.1 socket函数
+
+一个进程想要指向网络I/O，第一件事就是要调用socket函数创建套接字用于进行网络I/O的接口。
+
+```
+#incldue<sys/socket.h>
+int socket(int family,int type,int protocol);//创建成功时返回套接字文件的文件描述符fd
+```
+* family指协议族，AF_INET,AF_INET6等
+* type表示socket套接字的类型:SOCK_STREAM(字节流),SOCK_DGRAM（数据报）等
+* protocol表示传输层协议：IPPROTO_TCP,IPPROTO_UDP,IPPROTO_SCTP
+
+基于TCP客户／服务器端套接口函数简介：
+
+![unix_socket_15](/img/unix_socket_15.png)
+
+family,type以及protocol可选项：
+
+![unix_socket_16](/img/unix_socket_16.png)
+![unix_socket_17](/img/unix_socket_17.png)
+
+### 3.2 connect函数
+
+TCP客户用connect函数来建立与TCP服务器的连接：
+
+```
+#include<sys/socket.h>
+
+int connect(int sockfd,const struct sockaddr *servaddr,socklen_t addrlen);//sockfd为我们创建的套接字文件描述符,servaddr为我们想要连接的服务器端的通用地址结构，addrlen为该地址的数据长度。
+```
+
+* 客户在调用函数connect前**并不必非得调用bind函数**，内核会确定源IP地址，并选择一个**临时端口**作为源端口
+* 如果是TCP套接字，则connect会触发三次握手
+
+connect函数可能会出现如下三种情况：
+1. ETIMEDOUT错误：超时，没有收到SYN的响应，4.4BSD分4s，24s，75s三次间隔发送仍未收到响应报该错误
+2. RST:复位表示服务器并没有进程监听和等待与客户端进行连接
+3. ICMP:目的地不可达，软错误，同样根据4,24,75间隔重复发送SYN。
+
+### 3.3 bind函数
+
+bind函数把一个本地协议地址赋予一个套接口，对于网际协议，协议地址就是32位IPv4或128位的IPv6地址与16位的TCP或UDP端口号的组合。
+
+```
+#include<sys/socket.h>
+
+int bind(int sockfd,const struct sockaddr *myaddr,socklen_t addrlen);
+
+//sockfd指对应的套接字文件描述符，myaddr指我们要绑定的协议地址，addrlen表示该地址的数据长度
+```
+
+* bind函数可以指定一个端口号，也可以指定一个IP地址，可以两个都指定，也可以两个都不指定。当IP地址信息为**通配地址时，或指定端口号为0**时，内核会给该套接字设置**临时端口**，并且只有当套接字发出数据时才选择一个本地的IP地址。
+
+![unix_socket_18](/img/unix_socket_18.png)
+
+* 当bind不指定IP地址和端口时，内核会临时分配一个，但**分配的端口值并不能被返回**，因为参数myaddr是const类型，所以我们要想获取该临时端口号，需要使用**getsockname**函数来获取宿IP协议地址信息。
+* bind函数常返回的一个常见错误为EADDRINUSE(地址已经被使用)
+
+### 3.4 listen函数
+
+* 当socket创建套接字时，它被假设为一个 **主动套接口**，也就是默认要调用connect发起连接
+* listen函数把一个 **主动套接口**转换成一个 **被动套接口**。
+
+```
+#include <sys/socket.h>
+
+int listen(int sockfd,int backlog);//sockfd指要转换为被动套接字的文件描述符，backlog表示该套接字排队的最大连接个数
+```
+
+backlog涉及到的两个队列：
+
+1. **未完成连接队列**：客户端已经发送一个SYN到服务器端，服务器端接收到该SYN后就会在未完成队列创建一项，然后该套接口处于SYN_RCVD状态，并响应三次握手中第二个报文段。
+2. **已完成连接队列**：每个已完成三次握手过程的套接字，都会位于该队列，这些套接字都处于ESTABLISHED状态
+
+![unix_socket_19](/img/unix_socket_19.png)
+![unix_socket_20](/img/unix_socket_20.png)
+
+* backlog曾设置为这两个队列总和的最大值，但不同的系统有不同的实现方式，并且**不要把backlog设置为0.**
+* 未完成连接中队列的任何一项在其中**存留时间不超过RTT**
+* 当一个客户的SYN到达时，若这些队列是满的，TCP则忽略该SYN报文段，会自动出发TCP的自动重传机制
+
+###3.5 accept函数
+
+用于从已完成队列队头返回下一个已完成连接，如果已完成连接队列为空，进程被投入睡眠。
+
+```
+#include<sys/socket.h>
+
+int accept(int sockfd,struct sockaddr *cliaddr,socklen_t *addrlen);//值－结果参数
+
+```
+* 参数cliaddr和addrlen用来返回内核分配的已连接的**客户端的协议地址及长度信息**。返回值是内核自动生成的一个**全新的描述符**，用于与客户进行TCP连接。
+* 返回结果包括
+    - 新套接字描述符或错误代码
+    - cliaddr客户端协议地址信息
+    - addrlen协议地址数据长度
+* 如果我们队客户端的协议地址信息**不感兴趣**，可以将cliaddr和addrlen设置为**空指针**。
+
+### 3.6 fork和exec函数
+
+#### fork函数
+在介绍并发服务器之前，要先介绍一下Unix的fork函数
+
+```
+#include <unistd.h>
+pid_t fork(void);
+```
+
+* 调用一次fork，返回两次，在父进程中返回子进程的pid,在子进程中返回0（因为子进程可以轻松通过getppid去的父进程pid）
+* 父进程中调用fork之前的所有描述符在fork返回之后有子进程分享，网络服务器中，通常，子进程对一个已连接套接口继续进行读写，而父进程则关闭这个已连接的套接口。
+
+fork的两种典型用法：
+
+1. 一个进程创建一个自身的拷贝，每个拷贝都可以在另一个拷贝执行其他任务的同时处理各自的操作
+2. 一个进程想要执行另一个程序，但创建新进程只能通过调用fork，所有fork先创建一个自身的拷贝，然后调用exec来执行新的程序。
+
+#### exec函数
+
+存放在硬盘上的**可执行程序**能够被Unix执行的唯一方法是，由一个现有进程调用六个exec函数中的一个，exec会将当前**进程映像替换成新的程序文件**，该程序通常从main开始执行，**进程ID不变**。
+
+![unix_socket_21](/img/unix_socket_21.png)
+![unix_socket_22](/img/unix_socket_22.png)
+
+六个exec函数中只有execve是内核调用，其他五个都是调用execve的库函数：
+
+![unix_socket_23](/img/unix_socket_23.png)
+
+### 3.7 并发服务器
+
+我们希望一个服务器不长时间被单个客户长期占用，而是希望 **同时服务多个客户**，Unix编写并发服务器的最简单的办法就是fork一个子进程来服务每个客户。这样就使得**父进程**仅为**监听进程**，**子进程**来提供对客户的服务。
+
+* 父进程会关闭accept打开的**已连接文件描述符**。
+* 子进程则关闭用于**连接请求监听的文件描述符**。
+* 这样父子进程分工明确，父进程监听请求，子进程处理客户数据。
+
+```
+//并发服务器编程模版：
+
+pid_t pid;
+int listenfd,connfd;
+listenfd = Socket(...);//创建一个套接字
+Bind(listenfd);//将套接字绑定到指定的协议地址
+Listen(listenfd,LISTENQ);//将套接字由主动转换为被动开始监听。
+for(;;)
+    connfd Accept(listenfd,..);//从已完成队列中取出一个连接分配一个套接字，并返回文件描述符
+    if((pid = Fork())==0){
+        //进入子进程服务客户
+        Close(listenfd);//首先关闭监听套接字，仅让父进程监听
+        doit(connfd);//处理连接传送过来的数据
+        Close(connfd);//处理完毕后关闭该套接字
+        exit(0);//子进程退出
+    }
+    Close(connfd);//父进程关闭已连接套接字，仅让子进程去处理连接中客户传送过来的数据
+
+```
+
+问题：为什么父进程关闭connfd,子进程关闭listenfd都没有将这两个套接字关闭。
+
+* 因为每个文件或套接字在 **文件表项**中，都有一个 **引用计数**，当fork一个子进程后，listenfd和connfd的引用计数都变为了2，所以关闭一个，其引用计数减为1，**只有当引用计数减为0时，该套接字才会关闭**。
+
+![unix_socket_24](/img/unix_socket_24.png)
+
+
+### 3.8 close函数
+
+```
+#include <unistd.h>
+
+int close(int sockfd);//导致相应描述符的引用计数值减1，当引用计数减为0时触发四次挥手
+```
+
+如果想要直接通过socket发送FIN来关闭连接，不通过引用计数，则可以改用shutdown函数
+
+### 3.9 getsockname和getpeername函数
+
+```
+#include <sys/socket.h>
+//均为值－结果参数
+
+int getsockname(int sockfd,struct sockaddr *localaddr,socklen_t *addrlen);
+
+int getpeername(int sockfd,struct sockaddr *peeraddr,socklen_t *addrlen);
+```
+
+这两个函数都是获取指定套接字的协议地址信息，存放到localaddr和peeraddr，使用场景有如下几种：
+1. 没有bind就直接发起connect的套接字，getsockname来返回**内核给套接字在连接中赋予的IP地址和临时端口号 **
+2. 用**通配IP地址或端口号0**来绑定的套接字
+3. getsockname获取套接字的地址族
+4. 当服务器调用accept的某个进程通过调用exec更换程序时，由于**进程映像全部被替换**，accept获取的**“对端地址”信息也随之丢失**，所以我们要获取该已连接套接字的"对端地址"则需要调用**getpeername**来获取。
+
+![unix_socket_25](/img/unix_socket_25.png)
+
+## 4.TCP客户／服务器的代码实例
+
+这一章我们将实行一个完整的TCP客户端/服务器端程序的例子。
+
+1. 客户从标准输入和输出读入一行文本，并写给服务器
+2. 服务器从网络输入读入这行文本，回射给客户
+3. 客户从网络输入读入这行回射文本，并显示在标准输出上
+
+### 4.1 TCP服务器程序
+
+进行网络通信的第一步是要启动服务器，这里我们编写了一个并发服务器程序。该程序主要分为5个步骤：
+
+1. 创建监听套接字socket
+2. 设置协议地址信息，并将该协议地址绑定到该套接字上
+3. 将套接字转换为被动套接字
+4. 处理套接字的连接请求
+5. fork子进程来处理客户端数据（包括回射客户端str_echo）
+
+![unix_socket_29](/img/unix_socket_29.png)
+
+服务器回射程序str_echo,来和客户端通信：
+
+![unix_socket_30](/img/unix_socket_30.png)
+
+### 4.2 TCP客户端程序
+
+服务器启动后，开始监听请求连接，接下来我们看客户端是如何发起连接请求的：
+
+客户端主要做了三件事：
+
+1. 创建客户端用于TCP连接的socket
+2. 根据参数配置协议地址信息后，发起请求连接connect，这里没有进行bind操作
+3. 向连接成功的套接字发送数据
+
+![unix_socket_31](/img/unix_socket_31.png)
+
+其中通过已连接的套接字给服务器端发送数据的函数str_cli代码如下：
+
+![unix_socket_32](/img/unix_socket_32.png)
+
+### 4.3 正常启动
+
+1. 首先本地启动服务器：
+    ```
+    linux$ tcpserver &  //阻塞在accept调用
+    ```
+
+2. 查看服务器启动后的监听套接字：
+    ![unix_socket_33](/img/unix_socket_33.png)
+
+3. 启动客户端：
+    ```
+    linux$ tcpcli 127.0.0.1  //阻塞在fgets调用
+    ```
+4. 查看端口状态
+    ![unix_socket_34](/img/unix_socket_34.png)
+
+5. 查看这些进程的父子关系：
+     ![unix_socket_35](/img/unix_socket_35.png)
+
+### 4.4 正常终止
+
+我们可以在客户端键入EOF(Control+D)来终止客户端进程，终止后立即调用netstat命令可以看到客户端进程处于TIME_WAIT状态。
+
+* 客户端程序中**fgets会返回空指针**，从而离开函数str_cli(),并执行exit(0),关闭客户端进程
+* 客户端进程终止处理的其中一个步骤就是关闭该进程相关的套接字，导致TCP客户端发送一个**FIN信号**到服务器端
+* 服务器端TCP接收到FIN报文段时，**readline函数会返回0**，同样跳出子进程中的处理函数str_echo(),并执行exit（）退出子进程，服务器端的套接字被关闭。
+* 客户端接收到服务器端**最后一个ACK后处于TIME_WAIT状态**(2RTT)
+* 服务器端子进程退出后会向父进程**发送SIGCHLD信号**，虽然该信号产生了，但本服务器代码并没有处理该信号，父进程没有处理导致子进程成为了**僵死进程(Z:没有将进程退出时的信息进行回收)**
+
+### 4.5  POSIX信号处理
+
+信号就是通知某个进程发生了某个事件，有时也称为软件中断，并且是异步发生的
+
+信号可以：
+
+1. 由一个进程发给另一个进程（可以是自身）
+2. 内核发给某个进程
+
+每个信号都有一个与之关联的处置，也称为行为，我们通过调用**sigaction函数**来设定信号的处理过程:
+
+1. 我们可以捕获信号，并调用该信号所设置的信号处理函数，这称为捕获信号，但有两种信号不能被捕获：SIGKILL和SIGSTOP
+2. 可以将信号设置为SIG_IGN来忽略该信号，同样，SIGKILL和SIGSTOP不能被忽略
+3. 将信号设置为SIG_DFL，启用默认的信号处理函数
+
+#### signal函数
+
+* 建立信号处置的POSIX方法就是调用sigaction函数，但这个过程比较复杂，因为我们需要创建并填写对应的sigaction结构。
+* 另一个方法是调用signal函数，两个参数一个是信号名，另一个则是信号处理函数。调用简单
+* 其实目前大部分定义signal函数就是通过内部创建sigaction结构体，然后调用sigaction函数来实现，如下图所示：
+
+     ![unix_socket_36](/img/unix_socket_36.png)
+
+1. 上图所示的Sigfunc是通过**typedef**定义的：typedef void Sigfunc(int);//定义Sigfunc为参数为整型数，函数没有返回值的**函数原型**，这样可以简化函数的书写
+2. 设置sigaction的**sa_handler**元素设置为传进来的函数指针
+3. 第7行设置**信号掩码**，POSIX允许我们设置这样一组信号，他们在信号处理函数被调用期间阻塞，不能传递给进程。这里是将**sa_mask设置为空集**，也就是不阻塞任何信号（但POSIX**保证阻塞该信号处理函数所处理的信号不能再次传递给进程**)
+4. 设置SA_RESTART标志：8～17行，设置该标志，由相应信号而中断的系统调用将由**内核自动重启**。对SIGALARM进行特殊处理：因为该信号通常是对I/O操作**设置超时的操作**，发生超时时，我们希望该**系统调用中断**掉。所以有和SA_RESTART互补的SA_INTERRUPT标志
+5. 调用sigaction设置信号的处理动作，并**返回旧的处理动作到oact,然后返回旧的信号处理函数**。
+
+#### 信号处理语义
+
+1. 信号处理函数一旦被安装就**一直被安装**
+2. 信号处理函数期间，**正在被递交和sa_mask信号集**中的信号被阻塞
+3. 一个信号在被阻塞期间产生多次，当被解阻塞后，只会递交一次，信号默认是**不排队**的
+4. 利用**sigprocmask**来阻塞和解阻塞一组信号
+
+### 4.5 处理SIGCHLD信号
+
+* 僵死进程：当子进程退出时，会给父进程发送**SIGCHLD**信号，子进程会处于**僵死状态维护进程信息**，这些信息包括子进程的进程ID,终止状态以及资源的利用信息（CPU时间，内存使用量等）。
+* 当一个进程终止时，操作系统会检查该进程的子进程**是否拥有僵死进程**，如果有，则将这些僵死进程的**父进程ID 设置为1，由Init进程**来清理这些僵死进程的信息（init会wait这些僵死进程）
+
+#### 处理僵死进程
+* 僵死进程的存在会**占用内存空间**，并且可能导致我们耗尽进程资源。
+* 所以无论何时我们**fork子进程都要wait**它们，防止它们变成僵死进程。
+* 解决方案就是通过在父进程**捕获SIGCHLD信号的处理函数**，函数体中调用**wait()**来回收子进程中的信息
+
+```
+Signal(SIGCHLD,sig_chld);//设置SIGCHLD处理函数
+
+#include "unp.h"
+
+void sig_chld(int signo){
+    pid_t pid;
+    int stat;
+    pid = wait(&stat);//wait调用获取到子进程的pid和终止状态stat
+    printf("child %d terminated\n",pid);
+    return;
+
+}
+
+```
+
+* 我们服务器的父程序中阻塞在accept（）**慢系统调用**（slow system call）中,捕获到SIGCHLD信号，致使accept返回一个**EINTR错误（系统调用被中断）**，而父进程程序没有处理该错误，导致进程终止。
+* 有的系统会设置**SA_RESTART标志**，导致该信号触发时，阻塞进程的系统调用accept会**自动重启，而不会返回错误**后终止。
+* 所以有些系统对于阻塞于某个慢系统调用的一个进程捕获某个信号且相应处理函数返回时，该系统调用会返**回EINTR错误**，而有的系统则**自动重启该系统调用**
+
+### 4.6 wait和waitpid函数
+
+```
+#include <sys/wait.h>
+
+pid_t wait(int statloc);
+
+pid_t waitpid(pid_t pid,int statloc,int options);
+```
+
+相同点：
+
+* 都等待子进程终止然后返回**终止子进程的pid**及子进程的**终止状态**（正常终止，由某个信号杀死，作业控制停止）。
+* 有些宏（**WIFEXITED,WEXITSTATUS**）的设置来获取子进程的退出状态，杀死子进程的信号值，停止子进程作业控制的信号值。
+
+区别：
+
+* wait:**不指定**子进程，在父进程中等待任一子进程终止为止，且会 **一直阻塞**。
+* waitpid:等待 **指定子进程**终止，才进行处理，通过pid参数进行指定，当pid为**－1**时，不指定子进程，第一个子进程终止时就处理。同时可以通过设置参数**option(WNOHANG)**,等待子进程时**不阻塞**父进程。
+
+#### 多个信号同时递交
+
+1. 当一个服务器进程有多个子进程来服务多个客户时，当多个客户（如5个）同时终止，服务子进程也会终止**并发出5个SIGCHLD信号**
+2. 当我们在父进程调用 **wait()**函数时，处理第一个SIGCHLD信号时调用信号处理函数，该函数执行完毕之前收到其它四个子进程发出的SIGCHLD信号
+3. 由于信号**不排队**，所以其他四个信号都会消失。导致这四个进程变为**僵死进程**
+
+![unix_socket_37](/img/unix_socket_37.png)
+解决办法：使用waitpid函数，我们在一个**循环内调用waitpid**，获取终止的子进程的状态。因为waitpid可以**不用阻塞**，当waitpid调用信号处理函数时，循环依然继续监听子进程是否终止。
+
+服务器端的正确代码：
+![unix_socket_38](/img/unix_socket_38.png)
+
+![unix_socket_39](/img/unix_socket_39.png)
+
+#### accept返回前连接夭折
+
+TCP三次握手的连接已经建立，TCP却发送了一个RST复位，也就是当该连接已经进入已完成队列，等待服务器调用accept。这时客户端发送一个RST信号，随后服务器进程调用accept。这会引发accept报错。
+
+#### 服务器子进程终止
+
+当客户/服务器对启动后，然后杀死服务器子进程，我们观察客户端发生的动作：
+
+1. 正常情况下，客户端给服务器端发送一行文本，服务器端回射给客户端显示在终端。
+2. 当服务器处理该客户的子进程被**kill掉**后，服务器会向客户端**发送FIN信号**，客户端TCP会立即**响应ACK**。
+3. SIGCHLD信号发送给服务器父进程，调用对应的处理函数
+4. 此时客户端正**阻塞在fgets系统调用**上，且客户端TCP处于**CLOSE_WAIT状态**，服务器端TCP位于**FIN_WAIT2状态**
+5. 当客户端输入一行文本，客户端依然可以发送给服务器，因为客户TCP接收到FIN只是表示服务器进程关闭了连接的服务器端（也就是**服务器不会再向客户端发送数据**），并没有告诉客户端说服务器进程已经终止（这个例子中，服务器进程是**被kill掉的，已经终止**,如果没有被kill是可以发送数据的）。所以服务器接收到该数据后，会返回一个**RST报文段**。
+6. 客户端看不到这个RST信号，因为当执行到Readline时，会读取到第2步服务器发送过来的**FIN报文段从而返回0**，报错“server terminated prematurely”
+7. 客户端进程退出，关闭所有套接字
+
+![unix_socket_40](/img/unix_socket_40.png)
+
+#### SIGPIPE信号
+
+* 上述服务器子进程终止的场景下，要是我们连续两次写数据到服务器端，第一次会触发服务器**发送RST报文段**，第二次写则是 **向某个已经收到RST的套接字执行写操作**。
+* 这时，内核向该进程发送一个 **SIGPIPE信号**，该信号缺省行为是 **终止进程，并返回EPIPE错误**。
+
+![unix_socket_41](/img/unix_socket_41.png)
+
+#### 服务器主机崩溃
+
+在客户端服务器端启动后，然后从网络上断开服务器主机，然后客户端键入文本数据。
+
+此时发生的情况如下：
+
+1. 这里我们假设服务器主机崩溃并**不是shutdown**。也就是服务器端网络不可达
+2. 客户端发送文本数据到服务器端，并阻塞在**readline 系统调用**，等待回射的应答。
+3. 客户TCP会执行重传机制，不断向网络**重传**数据报文段，Berkeley实现的重传要**重传12次，共等待9min**才放弃重传，放弃重传后，readline会返回**ETIMED-OUT（超市错误），如果中间有路由器判定服务器主机不可达，则响应“destination unreachable”ICMP消息，返回EHOSTUNREACH或ENETUNREACH错误 **
+
+* 如果我们不想等待9min才知道服务器崩溃，我们可以 **设置readline超时**
+* 上述是我们 **向服务器发送数据**时，我们才能知道服务器崩溃，为了不用发送数据就能感知到服务器崩溃，我们可以给套接字设置 **SO_KEEPALIVE**套接口选项。
+
+#### 服务器主机崩溃后重启
+假设，服务器端崩溃后重启，客户端并没有感知到服务器关闭的过程，这里假设**没有使用SO_KEEPALIVE**套接口选项，所以客户端不发送数据就不能感知到服务器的关闭，发生如下步骤：
+
+1. 服务器和客户端正常连接
+2. 服务器崩溃并重启
+3. 客户端输入一行文本数据，向服务器端发送对应报文段
+4. 服务器崩溃后重启，它的TCP**之前的连接信息全部丢失**，所以服务器端对接收到的报文段**响应RST**
+5. 客户端接收到RST响应，被阻塞的**readline系统调用返回ECONNRESET错误**
+
+#### 服务器主机关机
+
+Unix系统关机时，init进程会给所有进程**发送SIGTERM信号**，该信号可以被捕获，再等待一段**固定**的时间(往往在5~20s之间)然后给所有仍在运行的进程**发送SIGKILL信号，该信号不能被捕获**。这么做是为了给进程留一小段时间来清除和终止，当服务器子进程终止时，所有套接字都将关闭
