@@ -1,0 +1,433 @@
+---
+layout:     post
+title:      "LeetCode题目思路整理"
+subtitle:   "LeetCode"
+date:       2018-05-14 15:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - LeetCode
+---
+# LeetCode刷题思路
+
+### 题目1:如何找到两个排序数组的中位数？(LeetCode4:Median of Two Sorted Arrays)
+
+* 描述：给定两个排序的数组a，b长度分别为m，n找出这两个数组的中位数，时间复杂度为O(log(m+n))
+
+假定a,b长度分别大于k，现在选择第k个数（排序后第k个数），先将a的第k/2个元素（a[k/2-1]）和b的第k/2个数进行比较，存在以下三种情况：
+
+1. a[k/2-1] == b[k/2-1],第k个数找到了，就是a[k/2-1]或b[k/2-1]
+2. a[k/2-1] > b[k/2-1],第k大的数肯定不可能在b[0..k/2-1]之间，因为小于b[k/2-1]的数包括b[0..k/2-1]（k/2个）以及a[0..k/2-1]（小于k/2个）中的一部分
+3. 同上，a[k/2-1] < b[k/2-1],第k大的数肯定不可能在a[0..k/2-1]之间
+
+要是m,n其中有一个长度小于k/2,则取长度和k/2的较小值来进行切割。
+
+## 动态规划
+
+### 题目2：找到最长回文子字符串(LeetCode5:Longest Palindromic Substring)
+
+* 描述：给出一个字符串，找出它的最长且为回文结构的子字符串：如：“babad”的最长子字符串且为回文的子串为"bab",或“aba”,而"cbbd"的最长子串为“bb”
+
+思路1：暴力求解：找出所有可能的子字符串头i和尾j，然后判断是否为回文，复杂度O（N^3）
+
+思路2: 动态规划，用一个二维数组arr记录子字符串是否为回文，横坐标纪录字符串开头i(i < s.zise()),纵坐标纪录结尾j(i<=j< s.size());然后二维数组中纪录的是从i到j的子字符串**是否为一个回文结构**。回文结构由以下三种情况
+    * 由**一个字符**组成的回文字符串
+    * 由**两个相同的字符**组成回文字符串
+    * i到j字符串为回文字符串，则i+1到j也为回文字符串，且s[i] = s[j];
+
+所以根据上述关系arr[i][j]和arr[i+1][j-1]的关系来做状态转换方程构建该二维数组。构建过程的复杂度为O(N^2),然后根据该二维数组找出最长子字符串。空间复杂度也为O(N^2)
+
+思路3(中心扩展，时间复杂度O(N^2),空间复杂度O(1)): 回文结构其实就是以一个点为**中心**，向两边扩展，我们只要找到这**2n-1个中心**（n为字符串的长度）然后两边扩展即可得到回文长度即可。为什么是2n-1个中心，因为中心分为两种：
+    * 以一个字符为中心
+    * 以两个相同的字符为中心
+
+```
+public String longestPalindrome(String s) {
+    int start = 0, end = 0;
+    for (int i = 0; i < s.length(); i++) {
+        int len1 = expandAroundCenter(s, i, i);
+        int len2 = expandAroundCenter(s, i, i + 1);
+        int len = Math.max(len1, len2);
+        if (len > end - start) {
+            start = i - (len - 1) / 2;
+            end = i + len / 2;
+        }
+    }
+    return s.substring(start, end + 1);
+}
+
+private int expandAroundCenter(String s, int left, int right) {
+    int L = left, R = right;
+    while (L >= 0 && R < s.length() && s.charAt(L) == s.charAt(R)) {
+        L--;
+        R++;
+    }
+    return R - L - 1;
+}
+```
+
+思路4（Manacher's Algorithm,O(N)）:
+
+首先将每两个字符串中插入"#",确保每个回文字符串都是奇数形式，以一个字符为中心的回文字符串
+```
+＃1＃2＃2＃1＃2＃2＃
+```
+为了防止越界，我们还需要在首尾再加上非#号字符
+
+遍历字符串，当遍历到第i字符时，我们需要在遍历过程中纪录回文串可以延伸到**最右端的端点下标max_right**,和以该端点作为结尾的回文字符串的**中心点ct**。还要纪录以该点为中心点的回文串的长度len[i]
+* 假设当我们遍历到ct时，匹配后确定了以它为中心的回文串达到的**右端点为前面所有中心的回文串的最右端点**：max_right。
+* 遍历下一个节点j = ct＋1时，len[j] = max_right < j ? min(p[2*ct-j],max_right - j):1;
+    - 这个表达式的含义就是当这个下标还在我们前面遍历得到回文串的**最右端点的范围之内**时，根据回文串的映射关系：2*ct-j为j以ct为中心的**映射点**，在ct为中心的回文串范围中，j和2*ct-j的回文串长度应该保持一致，但是出了这个范围，就需要进一步匹配来确定:
+    ![LeetCode_1.png](/img/LeetCode_1.png)
+    - 遍历过程中需要纪录:回文串**最右端点及中心点**，最长回文字符串的**中心点及长度**。遍历一次更新一次
+    - 代码参考：https://www.cnblogs.com/grandyang/p/4475985.html
+
+### 题目三：字符串匹配“.*”(Leetcode10:Regular Expression Matching)
+题目链接： https://leetcode.com/problems/regular-expression-matching/description/
+描述：给定一个字符串匹配模式pattern，输入一个字符串判断是否与该pattern匹配。
+
+1. '.'代表任意字符
+2. 'a*'代表a可以出现0次，1次或任意次
+3. '.*'带表任意长度（包括0）任意类型的字符串
+
+思路1：递归
+
+处理这三种匹配情况
+1. 碰到字母或'.'时，只要相等就进行下个字符的匹配
+2. 碰到*时分两种情况
+    * 字符＋‘*’匹配0个字符，1个字符或多个重复字符
+    * '.*'匹配0个字符，1个任意字符或多个任意长度的任意类型的字符
+
+{% highlight c++ %}
+bool match(string & str,string & pattern,int str_i,int pat_i){
+        if(str_i == str.size() && pat_i == pattern.size()){
+                return true;
+        }
+        if(str_i>str.size())
+            return false;
+        bool result = false;
+        if(pattern[pat_i+1]!='*'){
+        /*处理非*的情况*/
+            if(str[str_i] == pattern[pat_i]||pattern[pat_i] == '.')
+                return match(str, pattern, str_i+1, pat_i+1);
+            return result;
+        }else {
+            if(pattern[pat_i] != '.'){
+            /*处理字符＋‘*’的情况*/
+                result = match(str, pattern, str_i, pat_i+2);//字符＋‘*’匹配0个字符串
+                if(result)
+                    return result;
+                if(str[str_i] == pattern[pat_i])
+                    result = match(str, pattern, str_i+1, pat_i+2)||match(str, pattern, str_i+1, pat_i);//字符＋‘*’匹配1个字符串或多个重复字符
+                return result;
+            }else{
+            /*处理‘.*’的情况*/
+                result = match(str, pattern, str_i, pat_i+2)||match(str, pattern, str_i+1, pat_i+2)||match(str, pattern, str_i+1, pat_i);;//‘.*’匹配0个字符，1个字符，任意长度的任意类型的字符
+                return result;
+            }
+        }
+    };
+}
+{% endhighlight %}
+
+思路2: 动态规划
+
+用一个二维数组memo[pat_i+1][str_j+1]来记录长度为str_j和长度为pat_i的模版是否匹配
+1. 先进行初始化
+2. 状态转换方程
+    * 碰到pattern[pat_i]为字母或‘.’时
+    * 碰到pattern[pat_i]为为‘*’时
+        - pattern[pat_i－1]为普通字符时
+        - pattern[pat_i-1]为‘.’时
+3. 返回memo[pat_i+1][str_j+1]
+
+{% highlight c++ %}
+
+bool match_dp(string & str,string & pattern){
+        int str_size = (int)str.size(),pat_size = (int)pattern.size();
+        bool ** memo =new bool*[pat_size+1];//二维数组的创建
+        for(int i =0;i<=pat_size;i++){
+            memo[i] = new bool[str_size+1];
+        }
+        for(int i = 0;i<=pat_size;i++)
+            for(int j = 0;j<=str_size;j++)
+                memo[i][j] = false;
+        //Initialize初始化
+        memo[0][0] = true;
+        if(str_size>0&&pat_size>0){
+            if(str[0] == pattern[0]||pattern[0] == '.')
+                memo[1][1] = true;
+        }
+        if(pat_size<2){
+            return memo[pat_size][str_size];
+        }
+        //Dynamic Programming，开始进行遍历
+        bool result = false;
+        for(int i = 2;i<=pat_size;i++)
+        {
+            for(int j = 0;j<=str_size;j++){
+                result = false;
+                if(pattern[i-1] == '*'){
+                    if(pattern[i-2]!='.'){
+                        result =result||memo[i-2][j];//字母＋*匹配0个字符
+                        if(str[j-1] == pattern[i-2])
+                            result = result || memo[i-2][j-1]||memo[i][j-1];//字母＋*匹配1个字符或多个字符
+                    }else{
+                    /* 处理情况‘.*’  */
+                        result = memo[i][j-1]||memo[i-2][j];//.*匹配一个或多个字符，.*匹配0个字符
+                    }
+                }else{
+                /* 处理情况‘非*’*/
+                    if(str[j-1] == pattern[i-1]||pattern[i-1] == '.'){
+                        result = memo[i-1][j-1];
+                    }
+                }
+                memo[i][j] = result;
+            }
+        }
+        return memo[pat_size][str_size];
+    }
+
+{% endhighlight %}
+
+
+
+## 其它
+
+### 题目4 ：整型数反转(LeetCode7:Reverse Integer)
+
+将一个整型数的高位和低位进行反转，负数不变号，如果一个整型数反转后溢出后则返回0:
+
+例子：
+* 123  ＝》321
+* －12 ＝》－21
+* －120 ＝》－21
+
+注意点：
+
+* 整型数的范围为 **[-2^31,2^31-1];所以可能出现－2^31在范围内，而它的绝对值却不在整型范围内**
+* 要计算2^31次方：long upper = **(2L<<31);//L不能掉**
+
+{% highlight c++ %}
+class Solution {
+public:
+    int reverse(int x) {
+        bool positive = true;
+        long x2 = (long)x;
+        long upper = (2L<<30)-1;
+        //处理正负号
+        if(x2<0){
+            positive = false;
+            upper = upper-1;
+            x2 = labs(x2);//这里不能用abs，abs无法处理-2^31的绝对值，因为它处理整型数，转换过来的正数会溢出
+        }
+        if(x2 == 0)
+            return 0;
+        //处理末端为0的情况
+        while(!(x2%10))
+            x2 /= 10;
+        vector<long> digit;
+        while(x2>=10)
+        {
+            digit.push_back(x2%10);
+            x2 = (x2-x2%10)/10;
+        }
+        digit.push_back(x2);
+        long result = 0;
+        for(int k = 0;k<digit.size();k++){
+            result = result*10 + digit[k];
+            if(result>upper){
+                return 0;
+            }
+        }
+        if(positive)
+            return result;
+        else
+            return -result;
+    }
+};
+{% endhighlight %}
+
+### 题目五：装水最多的容器(LeetCode11:Container with most water)
+
+描述：给定一个整型数组｛a1,a2,a3...an｝;这些点代表在坐标轴上的n个点，（i，ai）。根据这些点画出垂直于x轴的直线，这些直线中任取两条直线构成一个容器，求两条直线使得构成的容器可以装水的体积最大。
+
+![container_water](/img/container_water.png)
+
+如图灰色部分就是两条加粗的线构成容器的所装水的容量。
+
+思路：两点法，从两端开始front =1 ,back = end,构成容器的大小为size,只要比较这两条直线的长度，在front和back的范围里想要**找到另一条线**和这两条线其中一条构成的容器大于size,则只能和**较长的一端**进行组合，所以我们将**较短的一端向中间移动**找到一条比它长的直线作为容器的一端，然后计算容器大小，如此循环移动直到front和back重合,在这个过程中**记录容器容量的最大值**。
+
+[解法链接](https://leetcode.com/problems/container-with-most-water/solution/)
+
+代码参考：
+{% highlight c++%}
+
+class Solution {
+public:
+    int maxArea(vector<int>& height) {
+        if(height.empty()||height.size()==1){
+            return 0;
+        }
+        int front = 0,back = height.size()-1;
+        int max_size = (height[back]>height[front]?height[front]:height[back])*(back-front);
+        //移动直到两端重合
+        while(front<back){
+            int front_tmp = front;
+            int back_tmp = back;
+            int h = 0;
+            //向中间移动较短的一端
+            if(height[front]>=height[back]){
+            //将尾端向前移动
+                while(height[back_tmp] >= height[back] && back>front)
+                    back--;
+                if(height[back_tmp]<height[back]){
+                //计算容器大小，记录最大容器容量
+                    h = height[back]>height[front]?height[front]:height[back];
+                    max_size = h*(back-front)>max_size?h*(back-front):max_size;
+                }
+                    
+            }else{
+            //将首段向后移动
+                while(height[front_tmp] >= height[front] && back>front)
+                    front++;
+                if(height[front_tmp] < height[front]){
+                    h = height[back]>height[front]?height[front]:height[back];
+                    max_size = h*(back-front)>max_size?h*(back-front):max_size;
+                }
+            }
+            
+        }
+        
+        return max_size;
+        
+    }
+};
+{% endhighlight %}
+
+### 题目六：罗马数转化为整数（Leetcode13:Roman to Integer）
+
+```
+Symbol       Value
+I             1
+V             5
+X             10
+L             50
+C             100
+D             500
+M             1000
+```
+如上所示，罗马表示数字的字符一一对应，数字规则如下：
+* 规则1:较小字符可以放在较大字符前面构成一个数：如IX(10-1 = 9),XLC(100-50-10 = 40)
+* 规则2:将一串罗马字符串根据规则1得到若干数字然后进行相加如：“MCMXCIV”,得到数字： M=1000,CM=900,XC=90,IV=4。最后相加结果为：1000+900+90+4 ＝ 1994
+
+思路1：从正面将所有数字分开，然后再一个个相加
+
+{% highlight c++%}
+class Solution {
+public:
+    int romanToInt(string s) {
+        if(s.empty())
+            return 0;
+        int result = 0;
+        map<char,int> roman;
+        roman['I'] = 1;
+        roman['V'] = 5;
+        roman['X'] = 10;
+        roman['L'] = 50;
+        roman['C'] = 100;
+        roman['D'] = 500;
+        roman['M'] = 1000;
+        
+        int num = roman[s[0]];
+        int size = s.size();
+        for(int i = 1;i<size;i++){
+            //分割字符串得到数字
+            while(i < size && roman[s[i]] >= roman[s[i-1]]){
+                if(roman[s[i]] == roman[s[i-1]]){
+                    num += roman[s[i]];
+                }else{
+                    num = roman[s[i]] - num;
+                }
+                i++;
+            }
+            //将得到的数字相加
+            result+=num;
+            num = 0;
+            
+            if(i<size){
+                num = roman[s[i]];
+            }
+        }
+        if(num != 0)
+            result+=num;
+        return result;
+    }
+};
+{% endhighlight %}
+
+思路2:从反方向来进行遍历，因为字符串构成数字的方向也是从后到前构成的：只有当后面的字符大于前面时才能构成一个数字。
+{% highlight c++%}
+int romanToInt(string s) 
+{
+    unordered_map<char, int> T = { { 'I' , 1 },
+                                   { 'V' , 5 },
+                                   { 'X' , 10 },
+                                   { 'L' , 50 },
+                                   { 'C' , 100 },
+                                   { 'D' , 500 },
+                                   { 'M' , 1000 } };
+                                   
+   int sum = T[s.back()];
+   //从后向前遍历即可
+   for (int i = s.length() - 2; i >= 0; --i) 
+   {
+       if (T[s[i]] < T[s[i + 1]])
+       {
+           sum -= T[s[i]];
+       }
+       else
+       {
+           sum += T[s[i]];
+       }
+   }
+   
+   return sum;
+}
+{% endhighlight %}
+
+### 题目七：三个数相加为0(LeetCode15:3Sum)
+
+给定一个数组，从中找到所有可能的三元组，使得这三个加起来的总和为0。
+
+思路1（暴力求解）:首先将数组进行排序，然后**三次循环**遍历确定找到使和为0的三元组。
+    - 优化：最后一次循环可以用**关联容器**来确定，将所有的数据放到一个关联容器multiset,在前两次循环后，三元组中的第三个数也就可以确定下来，我们可以直接判断该数是否在multiset存在
+
+**代码见Leetcode15.3Sum**
+
+
+思路2（O(N^2)）:同样需要先将数组进行排序，然后确定三元组中的**第一个元素**（一次循环），然后我们可以知道后两个元素的和，然后利用**两点法（见剑指offer面试题57:和为s的数字）**,来确定后两个元素的值。
+
+代码（Java）:
+{% highlight java%}
+public List<List<Integer>> threeSum(int[] num) {
+    Arrays.sort(num);
+    List<List<Integer>> res = new LinkedList<>(); 
+    for (int i = 0; i < num.length-2; i++) {
+        if (i == 0 || (i > 0 && num[i] != num[i-1])) {
+            int lo = i+1, hi = num.length-1, sum = 0 - num[i];
+            while (lo < hi) {
+                if (num[lo] + num[hi] == sum) {
+                    res.add(Arrays.asList(num[i], num[lo], num[hi]));
+                    while (lo < hi && num[lo] == num[lo+1]) lo++;
+                    while (lo < hi && num[hi] == num[hi-1]) hi--;
+                    lo++; hi--;
+                } else if (num[lo] + num[hi] < sum) lo++;
+                else hi--;
+           }
+        }
+    }
+    return res;
+}
+{% endhighlight %}
