@@ -1590,11 +1590,11 @@ int socketpair(int family,int type,int protocol,int sockfd[2]);
 
 1. 主函数如下：
 
-![unix_socket_94.png](/img/unix_socket_94.png)
+  ![unix_socket_94.png](/img/unix_socket_94.png)
 
 2. write_fd函数如下：通过流管道发送文件描述符到父进程。
-![unix_socket_95.png](/img/unix_socket_95.png)
-![unix_socket_96.png](/img/unix_socket_96.png)
+  ![unix_socket_95.png](/img/unix_socket_95.png)
+  ![unix_socket_96.png](/img/unix_socket_96.png)
 
 ### 9.7 传递凭证
 传递凭证的使用场景往往在于客户和服务器通信时，服务器通常需要以一定手段获悉客户的身份，以便验证客户是否具有权限请求相应的服务
