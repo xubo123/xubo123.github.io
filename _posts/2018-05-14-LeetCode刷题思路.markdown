@@ -191,7 +191,45 @@ bool match_dp(string & str,string & pattern){
 
 {% endhighlight %}
 
+## 递归
 
+### 题目八：手机号码的字符串组合（LeetCode17:Letter Combinations of a Phone Numbe）
+按手机输入法的格式，输入一串数字，得到所有可能的字符串:
+![leetcode_phonenum.png](/img/leetcode_phonenum.png)
+
+简单的递归思路：需要注意的点就是传入参数时，传入引用可以节省大部分运行时间
+
+代码:
+{% highlight c++ %}
+
+class Solution {
+public:
+    map<int,string> num_map = {{2,"abc"},{3,"def"},{4,"ghi"},{5,"jkl"},{6,"mno"},{7,"pqrs"},{8,"tuv"},{9,"wxyz"}};//关联容器的初始化
+    
+    vector<string> letterCombinations(string digits) {
+        string str;
+        vector<string> vs;
+        if(digits.size() == 0)
+            return vs;
+        vs = letterCombinations_x(digits,vs,str,0,digits.size());
+        return vs;
+    }
+    vector<string> &letterCombinations_x(string &digits,vector<string> & vs,string &str,int n,int size) {
+        if(n == size){
+            vs.push_back(str);
+            return vs;
+        }
+        string num_str = num_map[digits[n]-'0'];
+        for(int i=0;i<num_str.size();i++){
+            string str_tmp = str;
+            str_tmp.push_back(num_str[i]);
+            letterCombinations_x(digits,vs,str_tmp,n+1,size);//开始递归
+        }
+        return vs;
+    }
+};
+
+{% endhighlight%}
 
 ## 其它
 
