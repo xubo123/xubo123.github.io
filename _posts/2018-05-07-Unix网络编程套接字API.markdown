@@ -2540,7 +2540,7 @@ pthread_cond_signal通常唤醒相应条件变量上的单个线程，有时候�
 
 我们这部分将使用fcntl来进行加锁和解锁。代码我们只给出改动的部分（accept部分）：
 
-{% highlight c%}
+{% highlight c %}
 
   my_lock_init("/tmp/lock.XXXXXX");//创建一个临时文件，设置为文件锁
   for(i=0;i<nchildren;i++)
@@ -2554,7 +2554,7 @@ pthread_cond_signal通常唤醒相应条件变量上的单个线程，有时候�
     web_child(connfd);//处理客户数据
     Close(connfd);
 
-{% endhighlight% }
+{% endhighlight %}
 
 POSIX文件上锁功能：
 
