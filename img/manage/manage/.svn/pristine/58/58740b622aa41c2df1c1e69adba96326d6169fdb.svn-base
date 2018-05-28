@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.mobserv.dao.MobServMapper">
+
+	<select id="getServList" parameterType="com.hxy.core.mobserv.entity.CyServ" resultType="com.hxy.core.mobserv.entity.CyServ">
+		select 
+			cs.*,
+			(select count(id) from service_comment where serviceId = cs.id) as commentNum,
+			(select count(id) from service_praise where serviceId = cs.id) as praiseNum,
+			(select count(id) from service_favorite where serviceId = cs.id) as favoriteNum,
+			IFNULL(u.name,'') as userName,
+			IFNULL(u.picture,'') as userAvatar,
+			IFNULL(u.phoneNum,'') as userTel,
+			IFNULL(u.sex,'') as userSex
+		from 
+			service cs LEFT JOIN userprofile u 
+		on 
+			cs.accountNum = u.accountNum 
+		<where>
+			cs.status in(0,1) and cs.auditStatus = 1
+			<if test="type!=null and type!='' and type!=0">
+				and cs.type = #{type}
+			</if>
+			<if test="category!=null and category!='' and category!=0">
+				and cs.category = #{category}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0 and viewType != 'favorite'">
+				and cs.accountNum = #{accountNum}
+			</if>
+			
+			<if test="viewType!=null and viewType!='' and viewType == 'favorite'">
+				and cs.id IN(select serviceId from service_favorite where accountNum = #{accountNum})
+			</if>
+			<if test="region!=null and region!=''">
+				and cs.region like concat('%',#{region},'%')
+			</if>
+		</where>
+		order by id desc limit #{currentRow},#{incremental}  
+	</select>
+	
+	<select id="countServ" parameterType="com.hxy.core.mobserv.entity.CyServ" resultType="long">
+		select 
+			count(id)
+		from 
+			service cs
+		<where>
+			cs.status in(0,1) and cs.auditStatus = 1
+			<if test="type!=null and type!='' and type!=0">
+				and cs.type = #{type}
+			</if>
+			<if test="category!=null and category!='' and category!=0">
+				and cs.category = #{category}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0 and viewType != 'favorite'">
+				and cs.accountNum = #{accountNum}
+			</if>
+			
+			<if test="viewType!=null and viewType!='' and viewType == 'favorite'">
+				and cs.id IN(select serviceId from service_favorite where accountNum = #{accountNum})
+			</if>
+			<if test="region!=null and region!=''">
+				and cs.region like concat('%',#{region},'%')
+			</if>
+		</where>
+		
+	</select>
+	
+	
+	<select id="getServ" parameterType="com.hxy.core.mobserv.entity.CyServ" resultType="com.hxy.core.mobserv.entity.CyServ">
+		select 
+			cs.*,
+			(select count(id) from service_comment where serviceId = cs.id) as commentNum,
+			(select count(id) from service_praise where serviceId = cs.id) as praiseNum,
+			(select count(id) from service_favorite where serviceId = cs.id) as favoriteNum,
+			IFNULL(u.name,'') as userName,
+			IFNULL(u.picture,'') as userAvatar,
+			IFNULL(u.phoneNum,'') as userTel,
+			IFNULL(u.sex,'') as userSex
+		from 
+			service cs LEFT JOIN userprofile u 
+		on 
+			cs.accountNum = u.accountNum 
+		<where>
+			cs.status in(0,1) and cs.auditStatus = 1
+			<if test="type!=null and type!='' and type!=0">
+				and cs.type = #{type}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and cs.accountNum = #{accountNum}
+			</if>
+			<if test="region!=null and region!=''">
+				and cs.region like concat('%',#{region},'%')
+			</if>
+			<if test="id!=null and id!='' and id!=0">
+				and cs.id = #{id}
+			</if>
+		</where>
+		order by id desc limit 1
+	</select>
+	
+	
+	<select id="getServPicList" parameterType="com.hxy.core.mobserv.entity.CyServPic" resultType="com.hxy.core.mobserv.entity.CyServPic">
+		select * from service_pic where serviceId = #{serviceId} order by id desc
+	</select>
+	
+	<select id="getServPicListForServDetail" parameterType="com.hxy.core.mobserv.entity.CyServ" resultType="com.hxy.core.mobserv.entity.CyServPic">
+		select * from service_pic where id in(select max(id) from service_pic where serviceId in(select id from service where serviceId = #{serviceId}) group by serviceId) order by id desc limit 3
+	</select>
+	
+	
+	<select id="getServCommentList" parameterType="com.hxy.core.mobserv.entity.CyServComment" resultType="com.hxy.core.mobserv.entity.CyServComment">
+		select 
+			csc.*,
+			IFNULL(u.name,'') as userName,
+			IFNULL(u.picture,'') as userAvatar,
+			IFNULL(u.phoneNum,'') as userTel,
+			IFNULL(u.sex,'') as userSex
+		from 
+			service_comment csc LEFT JOIN userprofile u 
+		on 
+			csc.accountNum = u.accountNum 
+		where serviceId = #{serviceId} order by id desc limit #{currentRow},#{incremental}  
+	</select>
+	
+	<select id="countServComment" parameterType="com.hxy.core.mobserv.entity.CyServComment" resultType="long">
+		select 
+			count(id)
+		from 
+			service_comment
+		
+		<where>
+			<if test="serviceId!=null and serviceId!=''">
+				and serviceId = #{serviceId}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and accountNum = #{accountNum}
+			</if>
+		</where>
+	</select>
+	
+	
+	<select id="countServComplaint" parameterType="com.hxy.core.mobserv.entity.CyServComplaint" resultType="long">
+		select 
+			count(id)
+		from 
+			service_complaint
+		
+		<where>
+			<if test="serviceId!=null and serviceId!=''">
+				and serviceId = #{serviceId}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and accountNum = #{accountNum}
+			</if>
+		</where>
+	</select>
+	
+	
+	<select id="countServFavorite" parameterType="com.hxy.core.mobserv.entity.CyServFavorite" resultType="long">
+		select 
+			count(id)
+		from 
+			service_favorite
+		
+		<where>
+			<if test="serviceId!=null and serviceId!=''">
+				and serviceId = #{serviceId}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and accountNum = #{accountNum}
+			</if>
+		</where>
+	</select>
+	
+	
+	<select id="countServPraise" parameterType="com.hxy.core.mobserv.entity.CyServPraise" resultType="long">
+		select 
+			count(id)
+		from 
+			service_praise
+		
+		<where>
+			<if test="serviceId!=null and serviceId!=''">
+				and serviceId = #{serviceId}
+			</if>
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and accountNum = #{accountNum}
+			</if>
+		</where>
+	</select>
+	
+	
+	<insert id="insertServComplaint" parameterType="com.hxy.core.mobserv.entity.CyServComplaint">
+		insert into service_complaint(serviceId, accountNum, reason, createTime) 
+		values(#{serviceId}, #{accountNum}, #{reason}, now())
+	</insert>
+	
+	
+	<insert id="insertServComment" parameterType="com.hxy.core.mobserv.entity.CyServComment">
+		insert into service_comment(serviceId, accountNum, content, type, status, createTime) 
+		values(#{serviceId}, #{accountNum}, #{content}, 9, 0, now())
+	</insert>
+	<delete id="deleteServComment" parameterType="com.hxy.core.mobserv.entity.CyServComment">
+		delete from service_comment where id = #{id} and accountNum = #{accountNum}
+	</delete>
+	
+	<insert id="insertServPraise" parameterType="com.hxy.core.mobserv.entity.CyServPraise">
+		insert into service_praise(serviceId, accountNum, createTime) 
+		values(#{serviceId}, #{accountNum}, now())
+	</insert>
+	<delete id="deleteServPraise" parameterType="com.hxy.core.mobserv.entity.CyServPraise">
+		delete from service_praise where serviceId = #{serviceId} and accountNum = #{accountNum}
+	</delete>
+	
+	<insert id="insertServFavorite" parameterType="com.hxy.core.mobserv.entity.CyServFavorite">
+		insert into service_favorite(serviceId, accountNum, createTime) 
+		values(#{serviceId}, #{accountNum}, now())
+	</insert>
+	<delete id="deleteServFavorite" parameterType="com.hxy.core.mobserv.entity.CyServFavorite">
+		delete from service_favorite where serviceId = #{serviceId} and accountNum = #{accountNum}
+	</delete>
+	
+	
+	<update id="deleteServ" parameterType="com.hxy.core.mobserv.entity.CyServ">
+		update service set status = 3 where id = #{id} and accountNum = #{accountNum}
+	</update>
+	
+	<insert id="insertServ" parameterType="com.hxy.core.mobserv.entity.CyServ">
+	    
+	    <selectKey resultType="java.lang.Long" order="AFTER" keyProperty="id">
+			SELECT LAST_INSERT_ID() AS id
+		</selectKey>
+	    
+		insert into service(title, content, region, category, type, accountNum, createTime, auditStatus, auditOpinion, auditUserId, auditTime, status) 
+		values(#{title}, #{content}, #{region}, #{category}, #{type}, #{accountNum}, now(), #{auditStatus}, #{auditOpinion}, #{auditUserId}, #{auditTime}, #{status})
+	</insert>
+	
+	<insert id="insertServPic" parameterType="com.hxy.core.mobserv.entity.CyServPic">
+		insert into service_pic(serviceId, pic) 
+		values(#{serviceId}, #{pic})
+	</insert>
+	
+	<select id="getServById" parameterType="com.hxy.core.mobserv.entity.CyServ" resultType="com.hxy.core.mobserv.entity.CyServ">
+		select 
+			cs.*,
+			IFNULL(u.name,'') as userName,
+			IFNULL(u.picture,'') as userAvatar,
+			IFNULL(u.phoneNum,'') as userTel,
+			IFNULL(u.sex,'') as userSex
+		from 
+			service cs LEFT JOIN userprofile u 
+		on 
+			cs.accountNum = u.accountNum 
+		
+		where cs.id = #{id}
+	</select>
+	
+	<insert id="insertContact" parameterType="com.hxy.core.mobserv.entity.CyContact">
+	    <selectKey resultType="java.lang.Long" order="AFTER" keyProperty="id">
+			SELECT LAST_INSERT_ID() AS id
+		</selectKey>
+		
+		insert into contact(title, content, category, accountNum, createTime, replyContent, replyUserId, replyTime, status) 
+		values(#{title}, #{content}, #{category}, #{accountNum}, now(), #{replyContent}, #{replyUserId}, #{replyTime}, #{status})
+	</insert>
+	
+	<select id="getContactList" parameterType="com.hxy.core.mobserv.entity.CyContact" resultType="com.hxy.core.mobserv.entity.CyContact">
+		select cc.*, 
+			IFNULL(cu.name,'') as userName,
+			IFNULL(cu.picture,'') as userAvatar,
+			IFNULL(cu.phoneNum,'') as userTel,
+			IFNULL(cu.sex,'') as userSex
+		from 
+			contact cc
+		LEFT JOIN userprofile cu 
+		on 
+			cc.accountNum = cu.accountNum 
+		<where>
+			cc.status = 0
+			<if test="accountNum!=null and accountNum!='' and accountNum!=0">
+				and cc.accountNum = #{accountNum}
+			</if>
+			<if test="category!=null and category!='' and category!=0">
+				and cc.category = #{category}
+			</if>
+			
+			
+		</where>
+		order by cc.id desc limit #{currentRow},#{incremental}
+		<!-- order by cc.id desc limit #{currentRow},2  -->
+	</select>
+	
+	<select id="getMobProvinceCapital" resultType="map">
+		select cityName from city where type=1
+		
+	</select>
+	
+	<select id="getMobProvince" resultType="map">
+		select provinceName from province where countryId=1
+	</select>
+	
+	<select id="getMobProvinceAndId" resultType="map">
+		select provinceName, id from province where countryId=1
+	</select>
+	
+	<select id="getMobCapitalFromProvince" parameterType="map" resultType="map">
+		select cityName from city where provinceId=#{provinceId}
+		
+	</select>
+	
+</mapper>

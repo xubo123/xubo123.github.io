@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.region.dao.AreaMapper">
+	<resultMap type="com.hxy.core.region.entity.Area" id="areaResultMap">
+		<id column="id" property="id" />
+		<result column="areaName" property="areaName" />
+		<result column="postCode" property="postCode" />
+		<result column="cityId" property="cityId" />
+	</resultMap>
+	<select id="selectByCityId" parameterType="int" resultMap="areaResultMap">
+		select * from area where cityId=#{cityId}
+	</select>
+</mapper>

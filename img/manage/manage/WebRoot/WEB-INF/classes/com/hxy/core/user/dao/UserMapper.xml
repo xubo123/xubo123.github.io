@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.user.dao.UserMapper">
+	<resultMap type="com.hxy.core.user.entity.User" id="userResultMap">
+		<id column="userId" property="userId" />
+		<result column="userName" property="userName" />
+		<result column="userAccount" property="userAccount" />
+		<result column="userPassword" property="userPassword" />
+		<result column="email" property="email" />
+		<result column="telephone" property="telephone" />
+		<result column="dept_id" property="deptId" />
+		<result column="flag" property="flag" />
+		<result column="roleId" property="roleId" />
+		<association property="role" column="roleId"
+			javaType="com.hxy.core.role.entity.Role">
+			<id column="roleId" property="roleId" />
+			<result column="roleName" property="roleName" />
+			<result column="systemAdmin" property="systemAdmin" />
+			<result column="flag" property="flag" />
+		</association>
+		<collection property="depts" ofType="com.hxy.core.department.entity.Department">
+			<id column="department_id" property="department_id" />
+			<result column="departmentName" property="departmentName" />
+			<result column="schoolName" property="schoolName" />
+		</collection>
+	</resultMap>
+		
+	<select id="countUser" parameterType="map" resultType="long">
+		select count(userId) from user
+		<where>
+			<if test="userAccount!=null and userAccount!=''">
+				and userAccount like concat('%',#{userAccount},'%')
+			</if>
+		</where>
+	</select>
+	<select id="selectUserList" parameterType="map" resultMap="userResultMap">
+		select u.*,r.*,d.* from user u 
+		left join role r on u.roleId=r.roleId
+		left join user_dept ud on u.userId=ud.userId 
+		left join department d on ud.deptId=d.department_id
+		<where>
+			<if test="userAccount!=null and userAccount!=''">
+				and userAccount like concat('%',#{userAccount},'%')
+			</if>
+		</where>
+		limit #{start},#{rows}
+	</select>
+	<insert id="save" parameterType="com.hxy.core.user.entity.User"
+		useGeneratedKeys="true" keyProperty="userId">
+		insert into
+		user(userName,userAccount,userPassword,telephone,email,flag,roleId)
+		values(#{userName},#{userAccount},#{userPassword},#{telephone},#{email},#{flag},#{roleId})
+	</insert>
+	<select id="countByUserAccount" parameterType="map" resultType="long">
+		select count(userId) from user
+		<where>
+			<if test="userAccount!=null and userAccount!=''">
+				userAccount=#{userAccount}
+			</if>
+			<if test="userId!=0">
+				and userId!=#{userId}
+			</if>
+		</where>
+	</select>
+	<select id="selectByUserAccount" parameterType="string"
+		resultMap="userResultMap">
+		select us.*,ro.*,d.*
+		from user us
+		left join role ro on us.roleId=ro.roleId 
+		left join user_dept ud on us.userId=ud.userId 
+		left join department d on ud.deptId=d.department_id
+		where us.userAccount=#{userAccount} and us.flag=0
+	</select>
+	<select id="selectByUserAccountx" parameterType="string"
+		resultMap="userResultMap">
+		select us.*,ro.*,d.*
+		from user us
+		left join role ro on us.roleId=ro.roleId 
+		left join user_dept ud on us.userId=ud.userId 
+		left join department d on ud.deptId=d.department_id
+		where us.userAccount=#{userAccount} and us.flag=1
+	</select>
+	
+	<select id="selectByUserId" parameterType="long" resultMap="userResultMap">
+		select us.*,ro.*,d.*
+		from user us
+		left join role ro on us.roleId=ro.roleId 
+		left join user_dept ud on us.userId=ud.userId 
+		left join department d on ud.deptId=d.department_id
+		where us.userId=#{userId}
+	</select>
+	<update id="update" parameterType="com.hxy.core.user.entity.User">
+		update user set
+		userName=#{userName},telephone=#{telephone},email=#{email},roleId=#{roleId}
+		where userId=#{userId}
+	</update>
+	<update id="updatePassword" parameterType="com.hxy.core.user.entity.User">
+		update user set
+		userPassword=#{userPassword}
+		where userId=#{userId}
+	</update>
+	<delete id="delete" parameterType="long">
+		delete from user where
+		userId=#{userId}
+	</delete>
+	<select id="selectRole" parameterType="long" resultMap="userResultMap">
+		select
+		us.*,ro.* from user us left join role ro on us.roleId=ro.roleId
+		where
+		us.userId=#{userId}
+	</select>
+	<select id="selectAdminUser" resultMap="userResultMap">
+		select us.* from user
+		us
+		left join role ro
+		on us.roleId=ro.roleId
+		where ro.systemAdmin=1
+	</select>
+</mapper>

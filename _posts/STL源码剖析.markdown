@@ -1,0 +1,963 @@
+---
+layout:     post
+title:      "STL源码解析"
+subtitle:   "STL源码"
+date:       2018-05-28 15:00:00
+author:     "Xu"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - STL源码解析
+---
+# STL源码剖析
+
+## 第一章.STL概论
+
+STL六大组件：
+
+1. 容器containers:各种数据结构，如vector,list,deque,set,map用来存放数据，STL容器是一种class template
+2. 算法algorithms:STL算法是一种function template
+3. 迭代器iterators:扮演容器和算法之间的胶合剂，是所谓的"泛型指针"。共有五种类型，及其衍生变化，从实现的角度来看，迭代器是一种将operator*,operator->,operator++,operator--等指针相关操作**予以重载的class template**。所有容器都有附带自己专属的迭代器－因为只有容器设计者才知道**如何遍历**自己的元素，**原生指针**也是一种迭代器
+4. 仿函数functors:行为类似函数，可作为算法的某种策略，从实现的角度来看，仿函数是一种重载了operator()的**class或class template**。一般函数指针可以视为狭义的仿函数
+5. 适配器adapters:一种用来**修饰**容器或仿函数或迭代器**接口**的东西。底层实现可以有所区别，但接口是统一标准的
+6. 配置器allocators：负责空间配置与管理，从实现角度来看，配置器提供了一个实现动态空间配置、空间管理、空间释放的**class template**。
+
+六大组件的交互关系：
+
+![stl_pic_1.png](/img/stl_pic_1.png)
+
+## 第二章.空间配置器
+
+### 2.1空间配置器的标准接口
+
+```
+allocator::value_type
+allocator::pointer
+allocator::const_pointer
+allocator::reference
+allocator::const_reference
+allocator::size_type
+allocator::difference_type
+//rebind是一个嵌套的class template，class rebind<U> 拥有唯一成员other,是一个typedef，代表allocator<U>
+allocator::rebind
+//构造函数
+allocator::allocator()
+//拷贝构造函数
+allocator::allocator(const allocator&) 
+//泛化的拷贝构造函数
+template <class U> allocator::allocator(const allocator<U>&)
+//析构函数
+allocator::~allocator()
+//返回某个对象的地址，算式 a.address(x) 等同于&x
+pointer allocator::address(reference x) const 
+//返回某个const对象的地址，算式 a.address(x) 等同于&x
+const_pointer allocator::address(const_reference x) const
+//配置空间，足以容纳n个T对象
+//第2个参数是提示，实现上可能会利用它来增进区域性，或完全忽略
+pointer allocator::allocate(size_type n,const void* = 0)
+//归还之前配置的空间
+void allocator::deallocate(pointer p,size_type n)
+//返回可成功配置的最大量
+size_type allocator::max_size() const
+//根据x（调用p所指向类型的构造函数），在p指向的地址构造一个T对象。相当于new((void*)p) T(x)
+void allocator::construct(pointer p,const T& x)
+//等同于p->~T()，析构地址p的对象
+void allocator::destroy(pointer p)
+
+```
+
+这些标准完全无法应用于SGI STL因为SGI STL在这个项目上摆脱了STL标准规格，使用了一个专属的、拥有次层配置能力、效率优越的特殊配置器。事实上SGI STL仍然提供了一个标准的配置器接口，只是把它做了一层隐藏。
+
+### 2.2具备次配置力的SGI空间配置器
+* 配置器名称：alloc
+* 不接受任何参数
+
+如:
+
+```
+vector <int,std::allocator<int>> iv;
+
+//必须写成
+
+vector <int ,std::alloc> iv;//不接受参数
+```
+
+SGI STL的每一个容器都已经指定其**缺省的空间配置器**为alloc
+
+
+#### 2.2.1 SGI标准的空间配置器，std::allocator
+
+虽然SGI也定义有一个**符合部分标准**、名为**allocator**的配置器，但SGI自己从未用过它，也不建议我们使用，主要原因是因为效率不佳，只是把C++的**::operator new和::operator delete **做一层薄薄的包装而已
+
+#### 2.2.2 SGI特殊的空间配置器，std::alloc
+
+一般而言，我们所习惯的C++内存配置操作和释放操作是这样的：
+
+```
+class Foo{
+    ...
+}
+Foo * pf = new Foo;
+delete pf;
+```
+
+其中new算式内含两阶段操作：
+
+* (1) 调用::operator new 配置内存  
+* (2) 调用Foo::Foo()构造对象内容
+
+delete内含两阶段操作
+
+* (1) 调用Foo::～Foo（）将对象析构
+* (2) 调用::operator delete释放内存
+
+为了精密分工，STL allocator决定将这两阶段区分开来
+
+内存的**配置和构造**对应如下两部操作：
+
+* 内存配置：alloc:allocate()
+* 对象构造：：：construct()
+
+内存的**析构和释放**对应以下两部操作:
+
+* 内存析构：::destroy()
+* 内存释放：alloc::deallocate()
+
+```
+#include<stl_alloc.h> //负责内存的配置和释放
+#include<stl_construct.h>//负责对内容的构造与析构
+
+```
+
+![stl_pic_2.png](/img/stl_pic_2.png)
+
+#### 2.2.3 构造和析构基本工具：construct()和destroy()
+
+![stl_pic_3.png](/img/stl_pic_3.png)
+
+* construct()接受一个**指针p和一个初值value**,该函数的用途就是将该初值在所给指针所指的空间上构造，C++的**定位new**运算符可以实现这一任务。
+* destroy有两个版本
+    - 一个版本**接受一个指针**，准备将该指针所指对象析构掉，直接调用其析构函数即可。
+    - 第二个版本是接受first,last两个迭代器，准备将**[first,last)范围**内的所有对象析构掉。
+        + 我们需要考虑的是，该范围内的对象的析构函数是否是**non-trivial**（无关痛痒）的，多次调用这些non-trivial析构函数也是对效率的一种伤害。
+        + 因此我们首先利用 **value_type()**获取迭代器所指对象的型别，再利用 **__type_traits<T>** 判断该型别的析构函数是否无关痛痒。若是（__true_type）,则什么都不做，若不是（\__false_type）,这才循环析构范围内的对象。
+
+
+#### 2.2.4 空间的配置与释放，std::alloc
+
+对象构造前的空间配置和对象析构后的空间释放，由<stl_alloc.h>负责，SGI对此的设计哲学如下：
+
+* 向system heap要求空间
+* 考虑多线程（multi-threads）状态（暂时不考虑）
+* 考虑内存不足时的应变措施
+* 考虑过多“小型区块”可能导致的内存碎片问题
+
+C++内存配置的基本操作是::operator new()，内存释放的基本操作是::operator delete()。这两个全局函数相当于C的malloc和free。
+
+考虑到小型区块可能造成的内存破碎问题，SGI设计了双层配置器:
+
+* 第一级配置器直接使用malloc和free
+* 第二级配置器采用不同的策略：当配置区块超过128bytes时，视之为"足够大"，便调用第一级配置器；当配置器区块小于128bytes时，视之为"过小"",为了降低额外负担，采用内存池“memory pool整理方式”
+
+整个设计究竟只开放第一级配置器还是同时开放第二级配置器。取决于**__USE_malloc**是否被定义。
+
+为了屏蔽使用过程中对一级二级配置器的调用区别，SGI将配置器封装成统一的接口:simple_alloc,该接口其实就是单纯的转调用，SGI容器全部使用这个simple_alloc接口：
+
+![stl_pic_4.png](/img/stl_pic_4.png)
+
+容器通过该接口使用配置器：
+![stl_pic_5.png](/img/stl_pic_5.png)
+
+一二级配置器之间的关系：
+
+![stl_pic_6.png](/img/stl_pic_6.png)
+
+一二级配置器的封装接口和调用方式：
+![stl_pic_7.png](/img/stl_pic_7.png)
+
+#### 2.2.5 第一级配置器__malloc_alloc_template解析
+
+第一级配置器通过malloc和free来直接配置内存，当内存不足时，调用相应处理函数。
+
+默认处理例程如下：
+
+![stl_pic_8.png](/img/stl_pic_8.png)
+
+配置器模版类结构实现如下：
+
+![stl_pic_9.png](/img/stl_pic_9.png)
+
+配置器内存不足时调用的处理函数如下：
+
+![stl_pic_10.png](/img/stl_pic_10.png)
+
+
+第一级配置器以malloc,free,realloc等C函数执行实际的内存配、释放、重配置操作，并实现类似C++ new-handler的机制。它并不能直接运用C++ new-handler机制，因为它**没有使用::operator new**来配置内存。
+
+C++ new-handler机制就是当你的内存配置需求无法满足时，可以要求系统调用一个你所指定的函数。也就是一旦::operator new无法完成任务，在丢出std::bad_alloc异常状态之前，可以**调用指定的处理例程**。所以SGI也仿真出了一套类似**new-handler**机制
+
+SGI第一级配置器的allocate()和realloc()都是在调用malloc和realloc不成功后，该调用oom_malloc()和oom_realloc(),后两者都有**内循环**，不断调用“内存不足处理例程”，期望**释放**部分内存后**再次重新分配**。如果该例程没有被客端指定，则调用**默认**的处理过程**__THROW_BAD_ALLOC**，丢出bad_alloc异常或利用exit(1)硬生生终止程序。
+
+#### 2.2.6 第二级配置器__default_alloc_template解析
+
+第二级配置器多了一些机制，避免太多小额区块造成内存的碎片。
+
+* 如果区块够大，超过128bytes时，就移交第一级配置器处理
+* 当区块小于128bytes时，则以内存池管理，该方法称为次层配置：每次配置一大块内存（默认20个区块），并维护该大小的区块链表（free-list）。
+    - 需要配置内存时从该链表取出一块使用，但取出后就不在该链表结构中
+    - 回收内存时，则将回收的区块添加到该链表头位置
+
+为了方便管理，SGI第二级配置器会主动将任何小额区块的内存需求量上调至8的倍数，并维护16条（8，16，24...128）链表在一个数组中freelists[16],每一条的链表节点结构为：
+
+```
+union obj{
+    union obj *free_list_link;
+    char client_data[1];
+}
+```
+
+从第一个字段来查看是一个指向下一个obj节点的指针，从第二个字段来看则是指向实际数据块的指针。
+
+第二级配置器的实现：
+
+![stl_pic_11.png](/img/stl_pic_11.png)
+
+![stl_pic_12.png](/img/stl_pic_12.png)
+
+![stl_pic_13.png](/img/stl_pic_13.png)
+
+#### 2.2.7 空间配置函数allocate()
+
+第二级配置器分配内存的规则是：
+* 先判断区块的大小，大于128bytes的就调用第一级配置器
+* 小于128bytes就检查对应的free list如果free list之内有可用的区块，就从链表中直接分配
+* 没有可用的区块，就将区块大小**对齐为8**的倍数，然后调用**refill**来新开辟20个区块添加到可用链表
+
+实现如下：
+![stl_pic_14.png](/img/stl_pic_14.png)
+
+![stl_pic_15.png](/img/stl_pic_15.png)
+
+#### 2.2.8 空间释放函数deallocate()
+
+第二级配置器释放内存规则：
+
+* 大于128bytes时调用第一级配置器释放
+* 小于128bytes时，找到对应的可用区块链表，添加到该链表的头节点部分。
+
+代码实现：
+
+![stl_pic_16.png](/img/stl_pic_16.png)
+
+![stl_pic_17.png](/img/stl_pic_17.png)
+
+#### 2.2.9 重新填充free lists -refill()
+
+当分配内存时发现，没有可用区块用于分配时，调用refill，缺省取得20个新区块，但万一内存出不足，获得的节点数可能小于20
+
+![stl_pic_18.png](/img/stl_pic_18.png)
+
+#### 2.2.10 内存池（memory pool）
+
+首先我们先解释一下内存池分配内存的机制：
+
+1. 一般我们从内存池分配内存，都是分配指定区块大小的内存块（**默认为20个**）
+2. 如果内存池中内存无法分配20个区块的内存，则**力所能及分配少于20个**区块的内存块
+3. 如果内存池中连**一个**指定大小的区块都**无法分配**时：
+    - 3.1 首先将内存池中**剩余的内存**添加到合适的区块**链表**中，防止浪费
+    - 3.2 从**heap结构**中调用**malloc**分配内存
+    - 3.3 如果堆结构中内存不够时，在从所有**大于我们指定的区块**的区块链表中，搜索是否有可用区块，只要有一个则**释放到内存池**中，然后从内存池**再次分配**该指定大小的区块
+    - 3.4 如果所有大于该指定大小区块的链表中也没有可用区块时，则调用**第一级配置器**分配内存，若还是不够，则报**bad_alloc异常**
+
+![stl_pic_19.png](/img/stl_pic_19.png)
+![stl_pic_20.png](/img/stl_pic_20.png)
+![stl_pic_21.png](/img/stl_pic_21.png)
+
+### 2.3 内存基本处理工具
+
+SGI定义了五个全局函数，作用于**未初始化**的空间上:
+
+* construct()
+* destroy()
+* uninitialized_copy():对应于高层次函数copy()
+* uninitialized_fill():对应于高层次函数fill()
+* uninitialized_fill_n():对应于高层次函数fill_n()
+
+
+这三个函数可以有效将内存的配置与对象的构造行为分离开来。一个容器全区间的构造函数通常以两个步骤完成：
+
+* 配置合适大小的内存区块
+* 使用uninitialized_copy,uninitialized_fill或uninitialized_fill_n三个函数对这些未初始化的内存空间进行构造
+
+在一块内存中构造元素的过程中，有两点：
+
+* 在内存中的元素构造过程中，必须具备**"commit or rollback"**语意，也就是要么全部构造完成，要么一个都不构造，不能只构造部分元素。
+* 如果构造的对象满足**POD类型**要求，则可以通过采取最有效的初值填写手法，一般是调用对应的**stl算法**中的高层函数。如果不满足POD类型，则需要一个一个元素调用**construct**进行构造。
+
+举例解释，uninitialized_copy()的实现：
+
+uninitialized_fill,uninitialized_fiil_n和uninitialized_copy的区别在于，当是POD类型时，调用的stl算法高层函数不同，分别为fill()和fill_n()
+
+函数逻辑：
+
+1. 先获取拷贝对象的**value_type**
+2. 根据value_type获取判断是否是**POD类型**的函数
+3. 是POD类型，调用高层函数进行**批量拷贝**
+4. 不是POD类型调用construct**一个个**构造
+
+{% highlight c++ %}
+----------------------------------------------------------------------------
+//uninitialized_copy主要是将__uninitialized_copy进行封装调用，获取要拷贝对象的value_type
+template<class InputIterator,class ForwardIterator> 
+inline ForwardIterator
+    uninitialized_copy(InputIterator first,InputIterator last,ForwardIterator result){
+
+    return __unitialized_copy(first,last,result,value_type(result));
+}
+
+----------------------------------------------------------------------------
+//__uninitialized_copy获取了拷贝对象的value_type之后再，获取该对象类型是否是POD类型,然后调用__unitialized_copy_aux进行对应的操作
+
+template<class InputIterator,class ForwardIterator，class T> 
+inline ForwardIterator
+    uninitialized_copy(InputIterator first,InputIterator last,ForwardIterator result,T*){
+    typedef typename __type_traits<T> ::is_POD_type  is_POD;
+    return __unitialized_copy_aux(first,last,result,result,is_POD());
+}
+----------------------------------------------------------------------------
+//__unitialized_copy_aux的POD拷贝版本,is_POD返回__true_type
+template<class InputIterator,class ForwardIterator> 
+inline ForwardIterator
+    uninitialized_copy_aux(InputIterator first,InputIterator last,ForwardIterator result,__true_type){
+
+    return copy(first,last,result);//是POD类型，则调用高层stl算法函数
+}
+----------------------------------------------------------------------------
+//__unitialized_copy_aux的非POD拷贝版本,is_POD返回__false_type
+template<class InputIterator,class ForwardIterator> 
+inline ForwardIterator
+    uninitialized_copy_aux(InputIterator first,InputIterator last,ForwardIterator result,__false_type){
+    ForwardIterator cur = result;
+    for(;first!=last;++first,++cur)
+        construct(&*cur,*first)//不是是POD类型，则调用construct一个个构造
+    return cur;
+}
+
+{% endhighlight %}
+
+对于char*和wchar_t*两种类型，可以采用最具效率的做法：memmove来执行复制行为，因此为这个类型设计一份特化版本的uninitialized_copy()函数：
+![stl_pic_22.png](/img/stl_pic_22.png)
+
+总结这三个对未初始化内存的操作函数如下图：
+![stl_pic_23.png](/img/stl_pic_23.png)
+
+## 3.迭代器概念与traits编程技法
+
+* 迭代器所指对象的型别，称为该迭代器的**value_type**
+* 模版的参数推导机制只能**针对参数**进行推导，而不能根据执行期的**返回类型**进行推导获取返回类型
+* 所以我们需要指明返回的类型，但当指明的返回值涉及到模版**迭代器**参数类**所指向的对象类型**时，我们需要使用**合适的声明**来告知编译器，我们返回的是该迭代器所指的类型。
+
+![stl_pic_24.png](/img/stl_pic_24.png)
+
+* 但是并不是所有的迭代器都是一个类类型，只有类类型才能给出value_type字段的定义。但当迭代器是原生指针时，我们就无法根据value_type字段获取该指针所指向的多对象。
+* 所以我们要统一**一个接口**获取所有迭代器（类类型迭代器，原生指针等）所指对象的型别。则需要在中间层添加一层**萃取器类模版**，并对原生指针进行**偏特例化**处理
+
+对于一般**类类型迭代器**，该萃取器实例类中value_type的定义如下：
+
+```
+template <class I>
+struct iterator_traits{
+    typedef typename I::value_type value_type;//类类型迭代器所指对象的型别value_type可以直接从迭代器类型中成员value_type获取
+}
+```
+
+对于**原生指针**迭代器，该萃取器实例类中value_type定义如下：
+
+```
+template<class T> 
+struct iterator_traits<T*>{
+    typedef T value_type;//偏特例化版本，根据指针及模版参数推导机制直接获取指针所指对象类型
+}
+```
+
+针对指向常量对象的原生指针“const int *”，用原生指针的特例化版本萃取器会返回const int常量对象，而我们一般使用所指对象的value_type用于生命一个暂时变量如果是一个常量时，不能修改，并没有什么作用，所以我们针对指向常量对象的指针类型也有一个特例化版本萃取器。
+
+```
+template <class T>
+struct iterator_traits<const T*>{//针对指向常量对象指针的特例化版本
+    typedef T value_type;
+}
+```
+
+萃取器的工作就是获取一个迭代器所有的特性，而value_type只是其中的一个特性，萃取器可以获取迭代器一共五个特性，其它四个特性我们也将分别介绍：
+
+1. value_type:迭代器所指对象类型
+2. difference_type:迭代器之间的距离度量类型
+3. pointer:指针类型，指向该迭代器所指的对象类型
+4. reference:引用类型（左值引用，右值引用），引用该迭代器所指对象
+5. iterator_category:该迭代器类型，一共有五类：
+    - Input Iterator:只读
+    - Output Iterator:只写
+    - Forward Iterator:允许读写
+    - Bidirectional Iterator:可以双向移动
+    - Random Acess Iterator:涵盖前四种所有迭代器能力
+
+![stl_pic_25.png](/img/stl_pic_25.png)
+
+### 3.2 迭代器相应型别：difference_type
+
+difference_type:用来声明表示两个迭代器之间的距离的变量
+
+对于类类型迭代器，有成员**diffrence_type**来直接获取，对于原生指针和原生常量指针之间的距离用**ptrdiff_t**类型来度量(萃取器模版特例化实现)。
+
+typename iterator_traits<I>::difference_type  diff;//可以用于声明表示两个I类型迭代器之间的距离变量
+
+### 3.3 迭代器相应型别： reference type（用于解引用操作＊）
+
+从“迭代器所指之物的内容是否可以改变”的角度来看，迭代器可以分为两种：
+
+* 可以改变：reference传回的是左值引用
+* 不能改变：迭代器指向常量，reference传回的是右值引用
+
+reference用于返回一个迭代器指向对象的引用类型，所以若迭代器指向常量对象，返回的引用也是指向该常量对象，实现见下一小节
+
+### 3.4 迭代器型别：pointer type
+
+上一节reference是用于返回指向某迭代器指向对象的引用，这部分则是返回指向对象的原生指针。无论是指针还是引用都有针对原生指针和常量原生指针的特例化版本：
+
+![stl_pic_26.png](/img/stl_pic_26.png)
+
+### 3.5迭代器型别：iterator_category
+
+该型别指示该迭代器的类型，一共有五个类型（上面有提到），并且这五个类型之间具有一定继承关系：
+
+![stl_pic_27.png](/img/stl_pic_27.png)
+
+根据不同类型的迭代器，操作的方式也有所区别，为了根据**各类型迭代器的特点**，采用对应的迭代器操作，来提高效率。我们需要利用函数的**重载**来实现这一特点。
+
+实例，advanced()函数实现：该函数有两个参数，迭代器p和数值n,函数的功能就是将迭代器p累进n次，下面有三个函数版本，针对三个不同类型的迭代器具体实现：
+![stl_pic_28.png](/img/stl_pic_28.png)
+
+然后advanced函数先判断迭代器类型再调用各类型的函数：
+![stl_pic_29.png](/img/stl_pic_29.png)
+
+这个版本的advanced实现需要在执行期才能确定使用哪一个版本，影响程序效率，所以我们采用重载函数机制来实现，根据参数中迭代器类型标签来区分调用哪一个重载函数。
+
+五个标签：
+![stl_pic_30.png](/img/stl_pic_30.png)
+
+五个类型的函数的重载版本：
+![stl_pic_31.png](/img/stl_pic_31.png)
+
+将这五个重载模版函数封装为上层接口：
+
+![stl_pic_32.png](/img/stl_pic_32.png)
+
+所以萃取器iterator_traits中需要添加一个新的型别：
+
+```
+template<class I>
+struct iterator_traits{
+    ...//其它迭代器特性
+    typedef typename I::iterator_category  iterator_category;//直接从迭代器类型中获取该成员值
+}
+```
+
+同样萃取器需要针对原生指针和常量指针实现特例化版本，原生指针和常量指针其实也属于一种Random Acess Iterator（最强化版迭代器）
+
+```
+template<class I>
+struct iterator_traits<T*>{
+    ...//其它迭代器特性
+    typedef random_access_iterator_tag  iterator_category;//直接定义为Random Acess Iterator类型的迭代器标签
+}
+
+template<class I>
+struct iterator_traits<const T*>{
+    ...//其它迭代器特性
+    typedef random_access_iterator_tag  iterator_category;//直接定义为Random Acess Iterator类型的迭代器标签
+}
+
+```
+
+STL算法命名规则：如advanced本来可以接受各种类型的迭代器，但在模版参数的命名上依然为InputIterator,这是因为要以算法所能接受的**最低阶迭代器**来为迭代器型别的参数命名
+
+#### 消除“单纯传递调用的函数”
+
+用class来定义迭代器类型的标签，并用继承来实现类型之间的从属关系不仅可以实现重载的机制
+* 还一个好处是，通过继承我们可以避免再写**“单纯只做传递调用的”**函数。
+* 如上述advanced函数中五个迭代器类型的重载函数实现中，对于ForwardIterator类型迭代器的函数实现，完全只是调用InputIterator版本的函数。
+* 所以我们完全不用书写ForwardIteratorh的函数实现，因为**参数转化过程**会自动调用InputIterator的函数版本
+
+#### 3.5 std::iterator的保证
+
+* 为了符合规范，任何迭代器都应该提供 **五个内嵌的相应型别（迭代器的五个特性）**，利于traits萃取，否则便是自别于整个STL架构，可能无法与其它STL组件**顺利搭配**。
+* 为了然后**新设计**的迭代器来和STL组件**顺利兼容**，STL提供了一个**iterators class**如下，只要新设计的迭代器**继承**自它，就可以**保证**符合STL所需要的**规范**标准。
+
+其实这个std::iterator类就是包含了这五个特性的成员：
+
+![stl_pic_33.png](/img/stl_pic_33.png)
+
+当我们继承该类，设计新迭代器时：
+
+```
+template <class Item>
+struct ListIter:public std::iterator<std::forward_iterator_tag,Item>{//继承std::Iterator类并提供前两个特性参数
+    ...
+}
+```
+
+### 3.6 新迭代器的实现过程总结
+
+要实现新的迭代器要实现如下几个部分：
+
+1. 五个迭代器类型的**标签类**。 
+2. 要继承的**std::iterator**，来和STL组件兼容。
+3. **萃取器**iterator的实现，其中包括迭代器**五个特性**的萃取，及对**原生指针和原生常量指针**的**偏特例化**实现。
+4. 实现一个算法针对不同类型的迭代器的**重载函数**版本如__distance，再为这些重载函数封装一个**访问入口的接口**函数，如distance.
+
+### 3.7 SGI STL的私房菜：__type_triats
+
+上面所提及的iterator_traits只是针对迭代器的五个特性进行萃取，这一节将对所有 **型别（类，或基本类型等）**的对象的相关特性进行萃取，**__type_traits**就是该执行特性萃取的萃取器。
+
+对于一个型别（type）的特性包括：
+
+* 构造、析构、拷贝、赋值这些函数是否是有用的（non-trivial）函数，根据这些特性就可以采用最有效率的措施。对于那些没用的函数，可以采用内存直接处理操作如malloc,memcpy等等获得最高效率。
+* 一个**型别**是否为POD类型
+
+所以萃取器中需要有这些成员来代表是否具有这些特性：
+
+```
+__type_traits<T>::has_trivial_defualt_constructor
+__type_traits<T>::has_trivial_copy_constructor
+__type_traits<T>::has_trivial_assignment_operator
+__type_traits<T>::has_trivial_destructor
+__type_traits<T>::is_POD_type
+```
+
+这些式子会响应我们“真”或“假”，但其结果不应该只是一个bool值，应该是个有着真／假性质的“对象”，因为我们希望利用其响应结果来进行参数推导（为什么bool值不能进行参数推导？），为此，对应真和假有如下两个对象：
+
+```
+//这两个空白classes没有任何成员不会带来额外负担，却又能标示真假。
+struct __true_type{};
+struct __false_type{};
+```
+
+萃取器模版的定义：
+![stl_pic_34.png](/img/stl_pic_34.png)
+
+在<type_traits.h>中有对C++基本型别char,signed char,unsighed char,short,unsigned short,int,unsigned int,long,unsigned long,float,double,long double还有**原生指针**提供了萃取器__type_traits的特化版本，所有成员均设置为__true_type
+
+实例：uninitialized_fill_n(),首先获取对象型别value_type T1,在根据型别获取POD特性，在根据POD特性调用对应的重载函数：
+
+![stl_pic_35.png](/img/stl_pic_35.png)
+
+![stl_pic_36.png](/img/stl_pic_36.png)
+
+当我们新设计一个类时，很有有编译器会根据你的构造函数，析构函数等特性信息自动进行萃取，通常我们需要为新设计的类型设计一个特化版的萃取器__type_traits<NewClass>。否则默认这些特性都是__false_type,即使你具有这些特性。
+
+## 4 序列式容器
+
+### 4.2 vector
+
+这一节内容见幕布中STL容器的底层实现有介绍。
+
+### 4.3 list
+
+相比与vector的连续线性空间，list就显得复杂许多，它的好处就是每次插入或删除一个元素，就配置和释放一个元素空间，因此list绝对不浪费空间
+
+#### 4.3.2 list的节点结构
+
+lists是一个双向链表
+
+![stl_pic_37.png](/img/stl_pic_37.png)
+
+#### 4.3.3 list迭代器
+
+* list的迭代器不能想vector一样使用普通的迭代器，因为不能保证所有的节点保存在连续的存储空间，所以迭代器的前进后退都需要进行重载设置。
+* 所谓list迭代器正确的递增，递减、取值，成员存取等操作是指：
+    - 递增时指向下一个节点
+    - 递减时指向上一个节点
+    - 取值时取得是节点的数据值
+    - 成员取用时取用的是节点的成员
+* list的迭代器要能前进后退双向移动，所以其迭代器类型为Bidirectional Iterators
+* list的插入操作和接合操作不会使原有迭代器失效，因为原有迭代器所指节点位置并没有改变，甚至删除操作也不会影响到原有迭代器，除非是指向被删除节点的迭代器
+
+![stl_pic_38.png](/img/stl_pic_38.png)
+
+list迭代器代码：
+
+![stl_pic_39.png](/img/stl_pic_39.png)
+![stl_pic_40.png](/img/stl_pic_40.png)
+
+#### 4.3.4 list的数据结构
+
+SGI list不仅是一个双向链表，而且还是一个环状双向链表。所以它只需要一个指针就可以表现整个链表：
+
+```
+template<class T, class Alloc = alloc>
+class list{
+    protected:
+        typedef __list_node<T> list_node;
+    public:
+        typedef list_node* link_type;
+    protected:
+        link_type node;//只要一个指针指向链表中的任意一个节点，我们就能够表示整个环状双向链表
+        ...
+}
+```
+
+但双向链表如何符合STL对于“前闭后开”的区间要求，对应一个begin迭代器和last迭代器？
+
+* 我们只要让node指向刻意至于尾端的一个"空白节点"即可。所有双向列表的首尾相连的部分都会多出一个空白节点，拥有该空白节点，以下几个函数都可以轻易完成：
+
+```
+iterator begin(){
+    return (link_type)((*node).next);//空白节点的下一个节点为链表的起始节点迭代器
+}
+
+iterator end(){
+    return node;//空白节点即为last迭代器
+}
+
+bool empty() const{
+    return node->next == node;//当空白节点首尾相连时为空链表
+}
+
+size_type size() const{
+    size_type result = 0;
+    distance(begin(),end(),result);//全局算法函数，计算两个迭代器之间节点的个数
+    return result;
+}
+
+reference front(){
+    return *begin();//返回起始节点的数据值的引用
+}
+
+reference back(){
+    return *(--end());//返回最后一个节点的数据值引用
+}
+```
+
+![stl_pic_41.png](/img/stl_pic_41.png)
+
+#### 4.3.5 list 的构造和内存管理（constructor,push_back,insert）
+
+* list的默认构造函数是构造一条空的链表，只有一个空白节点。
+* list的内存管理包括对一个节点的内存配置，释放，构造和销毁操作
+
+首先我们看一下list的空间配置器，list默认使用alloc作为空间配置器，并使用统一的空间配置器接口simple_alloc模版，来分配内存：
+
+```
+template <class T,class Alloc = alloc>
+class list{
+    protected:
+        typedef __list_node<T> list_node;//定义一个节点模版类，确定节点所存储的数据类型
+        typedef simple_alloc<list_node,Alloc> list_node_allocator;//该配置器是以list_node为内存单位来实现统一的内存分配接口simple_alloc模版
+        ...
+
+}
+```
+
+以下四个list类成员函数分别用于配置、释放、构造和销毁一个节点：
+
+![stl_pic_42.png](/img/stl_pic_42.png)
+
+##### push_back，insert
+
+push_back只是对insert函数的调用而已，相当于在尾部插入元素。
+
+```
+void push_back(const T& x){
+    insert(end(),x);//在尾部插入元素
+}
+//insert函数
+
+// 将元素插入到指定的位置
+iterator insert(iterator position,const T& x){
+    link_type tmp = create_node(x);//想创建一个节点并构造
+    tmp->next = position.node;
+    tmp->prev = positon.prev;
+    (link_type(positon.node->prev))->next = tmp;
+    position.node->prev = tmp;//设置插入操作相关的指针设置
+    return tmp;
+
+}
+
+
+```
+
+#### 4.3.6 list的元素操作总结
+
+1. push_front:在起始迭代器处插入
+2. push_back:在last迭代器处插入
+3. erase:擦除迭代器所指元素，通过指针操作
+4. pop_front():用erase移除头节点
+5. pop_back():移除尾节点
+6. clear():清楚所有节点
+7. remove():移除指定value的节点
+8. unique():移除数值相同的连续元素
+9. transfer():迁移操作，将某个连续范围的元素迁移到某个特定位置之前,以下几个函数都是在tansfer的基础上实现的。
+    - splice():将某元素或某范围内元素结合到迭代器指定元素之前
+    - merge(): 将两个递增链表合并
+    - reverse():将一个链表进行反转
+    - sort():将链表进行排序（list不能使用STL算法sort(),因为STL算法sort只接收RandomAcessIterator）
+
+### 4.4 deque
+
+deque是一种双向开口的连续线性空间，deque和vector之间的最大差异在于：
+1. deque允许于常数时间内对起头端进行元素的插入或移除操作
+2. deque没有所谓的容量的概念，它是以动态地以分段连续空间组合而成，随时可以增加一段新的空间并连接起来
+
+#### 4.4.2 deque的中控器
+
+* deque是由一段一段的定量连续空间构成的，deque的最大任务就是在这些分段的定量连续空间上，维护其整体连续的假象。
+* 实现：deque是用一块所谓的map作为主控器，其实map就是一个映射数组，数组中存放的是指向一块块连续空间缓冲区的指针。默认值0表示该连续空间缓冲区的大小为512bytes:
+
+```
+template <class T,class Alloc = alloc,size_type Bufsize = 0>//Buf_size为每个缓冲区的大小
+class deque{
+    public:
+        typedef T value_type;
+        typedef value_type* pointer;
+        ...
+    protected:
+        typedef pointer * map_pointer;
+    //数据成员
+    protected:
+        map_pointer map;//指针数组，指针指向缓冲区
+        size_type map_size;//指针数组中可容纳的指针数
+        ...
+}
+```
+
+
+![stl_pic_43.png](/img/stl_pic_43.png)
+
+#### 4.4.3 deque的迭代器
+
+deque是分段连续空间，为了维持“其整体连续”的假象的任务，落在迭代器的 **operator++和operator--**两个运算子上。这两个运算子必须能够指出分段连续空间在哪里，其次要能够判断自己 **是否已经处于其所在缓冲区的边缘**。
+
+控制一个缓冲区的边界信息及当前迭代器所指位置信息主要靠迭代器中的三个成员：
+
+* cur;//当前迭代器的具体指针
+* first;//当前迭代器所在的缓冲区的首部
+* last;//当前迭代器所在缓冲区的尾部
+
+![stl_pic_44.png](/img/stl_pic_44.png)
+
+上述buffer_size()中返回缓冲区的大小
+
+* 若Bufsize为0，表示缓冲区大小使用默认值
+    - 若元素大小sz<512则传回512/sz
+    - 若元素大小sz>512,则传回1
+* 若Bufsize 不为0，则直接返回Bufsize
+
+```
+inline size_t __deque_buf_size(size_t,size_t sz){
+    return n! = 0 ? n : (sz < 512  ?  size_t ( 512 / sz  :  size_t ( 1 ) ) );
+}
+```
+
+![stl_pic_45.png](/img/stl_pic_45.png)
+
+* 假设我们产生一个元素为int,缓冲区大小为8个元素的deque，经过一系列操作，deque拥有20个元素
+* 那么begin()和end()所传回的两个迭代器应该如下图所示，这两个迭代器一直保存在deque内，成员名为start,finish。
+* 由于有20个元素所以需要三个缓冲区，map数组需要三个node节点
+
+![stl_pic_46.png](/img/stl_pic_46.png)
+
+接下来将就deque的一些关键操作进行分析，operator++,opertor--等
+
+因为可能涉及到 **多个缓冲区之间的跳转 ** ，实现函数为 **set_node()**,该函数主要用来合理的对三个迭代器关键成员： **node,last,first** 进行设置：
+
+```
+void set_node(map_pointer new_node)//先找到合适的缓冲区对应的map数组中的节点new_node,传入函数set_node
+{
+    //设置三个成员
+    node = new_node;
+    first = *new_node;
+    last = first + difference_type(buffer_size());
+}
+
+reference operator*() const{
+    return *cur;//返回迭代器当前所指对象的引用
+}
+
+reference operator->() const{
+    return &（operator*()）;//返回迭代器当前所指对象的指针
+}
+```
+
+![stl_pic_47.png](/img/stl_pic_47.png)
+![stl_pic_48.png](/img/stl_pic_48.png)
+
+#### 4.4.4 deque的数据结构
+
+上一节介绍完deque的迭代器之后，现在介绍 deque自身的数据结构：
+
+* 维护一个指向中控器**map的指针**
+* 维护缓冲区的**起始和尾后迭代器start,finish**
+* 维护map的大小，当map所提供的大小不足时，需要*重新配置**一块新的大小
+
+![stl_pic_49.png](/img/stl_pic_49.png)
+
+有了上面这些成员，如下几个deque的操作便可以轻易完成：
+
+![stl_pic_50.png](/img/stl_pic_50.png)
+
+#### 4.4.5 deque的构造和内存管理
+
+首先我们先了解一下当初始化一个deque结构时，内存是如何进行分配和构造的 
+
+```
+deque <int,alloc,8> ideq(20,9);//创建一个队列，并保留20个元素，均初始化为9，每个缓冲区的大小为8
+```
+
+deque自行定义了两个专属的空间配置器：
+
+* 一个是**map数组**的节点内存配置器
+* 一个是**缓冲区**的内存配置器
+
+```
+protected:
+    typedef simple_alloc<value_type,Alloc> data_allocator;
+    typedef simple_alloc<pointer,Alloc> map_allocator;
+
+    //并提供一个构造函数:
+    deque(int n , const value_type& value):
+    start(),finish(),map(0),map_size(0){
+        fill_initialize(n,value);//向缓冲区填充n个元素value
+    }
+
+```
+
+接下来我们看看是如何分配内存并填充元素的fill_initialze的：
+
+![stl_pic_51.png](/img/stl_pic_51.png)
+
+map结构的创建和缓冲区的分配：
+
+1. 创建map数组结构
+2. 为map结构中的所有节点**配置缓冲区**
+3. 为deque设置**队首和队尾（下一个位置）**元素迭代器
+
+![stl_pic_52.png](/img/stl_pic_52.png)
+
+**向队尾插入元素时：**
+
+* 若缓冲区还有**剩余空间**，则直接插入后**构造**，并设置好**尾后迭代器finish**
+* 若最后只剩下**最后一个**可用空间，插入后需要新**创建一个map中的节点**，指向新创建的一个缓冲区，尾后迭代器finish指向该缓冲区的第一个元素
+
+![stl_pic_53.png](/img/stl_pic_53.png)
+
+![stl_pic_54.png](/img/stl_pic_54.png)
+
+**向队首插入元素时：**
+
+* 若缓冲区还有**剩余空间**，则直接插入后 **构造**，并设置好 **队首迭代器finish**
+* 若 **没有(和队尾插入元素的区别)**可用空间，插入后需要新 **创建一个map中的节点**，指向新创建的一个缓冲区，队首迭代器指向该缓冲区的 **最后一个**元素。
+
+```
+void push_front(const value_type& t){
+    if(start.cur != start.first){
+        construct(start.cur-1,t);
+        --start.cur;
+    }else
+        push_front_aux(t);//没有可用空间时
+}
+```
+
+![stl_pic_55.png](/img/stl_pic_55.png)
+![stl_pic_56.png](/img/stl_pic_56.png)
+
+**检测map 数组是否需要扩充：**
+
+1. 当map数组尾端的节点备用空间不足时，需要重新配置reserve_map_at_back
+2. 当map数组的首端的节点备用空间不足时，需要重新配置reserve_map_at_front
+3. 重新配置map的函数为reallocate_map()函数：
+    - 首先判断当前map的大小是否为所有节点数的两倍以上
+        + 是，则只需要在本数组中调整所有节点的位置到中间即可
+        + 不是，需要重新分配更大的map数组，将原数组中的节点拷贝到合适的位置，然后回收原map数组的内存
+    - 最后重新设置deque的队首迭代器和尾后迭代器start,finish
+
+```
+void reserve_map_at_back(size_type nodes_to_add = 1)//要添加的节点个数{
+    if（nodes_to_add + 1 >map_size-(finish.node -map)）//map尾段的可用空间不足
+        reallocate_map(nodes_to_add,false);//重新分配map
+}
+
+void reserve_map_at_front(size_type nodes_to_add = 1)//要添加的节点个数{
+    if（nodes_to_add >start.node -map）//map首端的可用空间不足
+        reallocate_map(nodes_to_add,true);//重新分配map
+}
+```
+
+对map的重新分配操作：
+
+![stl_pic_57.png](/img/stl_pic_57.png)
+
+#### 4.4.6 deque的元素操作（pop_back,pop_front,clear,erase,insert）
+
+队列的的迭代器可用于各类STL算法，因为该迭代器为RandomAccessIterator类型
+
+**队尾删除元素,队首删除元素**
+
+和添加元素一样，我们需要考虑缓冲区的边界问题，但这里是释放缓冲区，不是新分配缓冲区，原理我就不再赘述了，直接上代码：
+
+![stl_pic_58.png](/img/stl_pic_58.png)
+
+**clear():清楚所有节点**
+
+* 如果有多个缓冲区：
+
+    1. 先将**除头尾两个缓冲区**的所有缓冲区全部**析构后释放**内存，因为这些缓冲区肯定都是**饱满**的
+    2. 在分别**析构**头缓冲区和尾部缓冲区的对象，但只释放尾部缓冲区，**头部缓冲区保留**
+
+* 如果只有一个缓冲区：根据start和finish直接析构,**不释放**缓冲区
+* 最后设置deque的 finish = start
+
+![stl_pic_59.png](/img/stl_pic_59.png)
+
+**erase:擦除迭代器所指元素，通过指针操作**
+
+擦除迭代器指定的元素：
+
+1. 如果擦除元素的**前面**的元素个数较少，则将前面所有的元素**向后面拷贝**一个距离，然后将队首的元素**pop_front()**
+2. 如果擦除元素的**后面**的元素个数较少，则将前面所有的元素**向前面拷贝**一个距离，然后将队尾的元素**pop_back()**
+
+![stl_pic_60.png](/img/stl_pic_60.png)
+
+擦除一定范围内的元素，思路和上面擦出一个元素差不多，只不过最后处理不是调用pop_front和pop_back，而是直接调用**destroy和deallocate**进行析构后释放处理。
+
+![stl_pic_61.png](/img/stl_pic_61.png)
+
+**insert:插入一个元素**
+
+思路其实和erase操作如出一辙，主要是做尽可能少的数据移动
+
+1. 当在队首前插入元素时，则直接调用push_front()
+2. 在队尾插入元素时，直接调用push_back()
+3. 在队中插入元素时：
+    - 若插入位置的前面元素少，将前面的所有元素向前移动一个距离（调用copy函数）
+    - 若插入元素的后面元素较少，将后面的所有元素向后移动一个距离（调用copy_backward函数）
+
+```
+iterator insert(iterator position,const value_type& x){
+    if(position.cur == start.cur){
+        push_front(x);
+        return start;
+    }else if(position.cur == finish.cur){
+        iterator tmp = finish;
+        --tmp;
+        return tmp;
+    }else{
+        insert_aux(position,x);//插入队列中间
+    }
+}
+
+```
+
+队列中间部分的插入操作：
+![stl_pic_62.png](/img/stl_pic_62.png)
+

@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.dept.dao.DeptMapper">
+	<resultMap type="com.hxy.core.dept.entity.Dept" id="deptResultMap">
+		<id column="dept_id" property="deptId" />
+		<result column="dept_name" property="deptName" />
+		<result column="parent_id" property="parentId" />
+		<result column="create_time" property="createTime" />
+		<result column="full_name" property="fullName" />
+		<result column="level" property="level" />
+		<result column="alias_name" property="aliasName" />
+		<collection property="depts" ofType="com.hxy.core.dept.entity.Dept">
+			<id column="dept_id1" property="deptId" />
+			<result column="dept_name1" property="deptName" />
+		</collection>
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.Dept_New" id="departmentResultMap">
+		<id column="affiliation" property="deptId" />
+		<result column="departmentName" property="deptName" />
+		<result column="schoolName" property="parentName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.Department" id="departResultMap">
+		<id column="department_id" property="department_id" />
+		<result column="departmentName" property="departmentName" />
+		<result column="schoolName" property="schoolName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.Dept_New" id="majorResultMap">
+		<result column="major" property="deptName" />
+		<result column="departmentName" property="parentName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.Dept_New" id="gradeResultMap">
+		<result column="grade" property="deptName" />
+		<result column="major" property="parentName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.Dept_New" id="classResultMap">
+		<id column="class_id" property="deptId" />
+		<result column="className" property="deptName" />
+		<result column="grade" property="parentName" />
+		<result column="major" property="grandparentName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.School" id="schoolResultMap">
+		<result column="school_id" property="school_id" />
+		<result column="schoolName" property="schoolName" />
+	</resultMap>
+	<resultMap type="com.hxy.core.dept.entity.NewDeptInfo" id="newDeptInfoResultMap">
+		<id column="dept_id" property="dept_id" />
+		<result column="schoolName" property="schoolName" />
+		<result column="college" property="college" />
+		<result column="major" property="major" />
+		<result column="grade" property="grade" />
+		<result column="class" property="className" />
+		<result column="modifyTime" property="modifyTime" />
+		<result column="affiliation" property="affiliation" />
+		<result column="affiliationName" property="affiliationName" />
+	</resultMap>
+	<select id="selectAll" parameterType="list" resultMap="deptResultMap">
+		select * from cy_dept_info where <![CDATA[ length(dept_id)<=10 ]]>
+		<if test="list!=null and list.size()>0">
+			and
+			<foreach collection="list" open="(" separator="or" close=")"
+				item="dept">
+				dept_id like concat(#{dept.deptId},'%')
+			</foreach>
+			and
+			<foreach collection="list" open="(" separator="and" close=")"
+				item="dept">
+				length(dept_id) !=length(#{dept.deptId})
+			</foreach>
+		</if>
+	</select>
+	<select id="getCollegeDepartment" resultMap="departResultMap">
+		select * from
+		department where type = 1
+	</select>
+	<select id="getNotCollegeDepartment" resultMap="departResultMap">
+		select * from
+		department where type != 1
+	</select>
+	<select id="selectAllForExport" resultMap="newDeptInfoResultMap">
+		select d.*
+		,d1.departmentName as affiliationName from class_info d,department d1
+		where d.affiliation = d1.department_id
+	</select>
+	<select id="selectDeptByDeptinfo" parameterType="map"
+		resultMap="newDeptInfoResultMap">
+		select * from class_info where college = #{departmentName}
+		and grade = #{grade} and class = #{class} and major = #{major} and
+		schoolName = #{schoolName}
+	</select>
+	<select id="checkDepartment" parameterType="map" resultMap="departmentResultMap">
+		select * from department where schoolName = #{school} and
+		departmentName = #{departmentName}
+	</select>
+	<select id="selectAlldept" parameterType="map" resultMap="departmentResultMap">
+		select affiliation,college as departmentName,schoolName from
+		class_info
+		<if test="departments!=null">
+			where 
+			<foreach collection="list" open="(" separator="or" close=")"
+				item="department">
+				affiliation = #{department.department_id}
+			</foreach>
+		</if>
+		group by college
+
+	</select>
+	<select id="selectByNameAndAffiliation" parameterType="map"
+		resultMap="newDeptInfoResultMap">
+		select * from class_info where major = #{major} and
+		affiliation = (select department_id from department where
+		departmentName = #{affiliation}) and grade = #{grade} and class =
+		#{class}
+	</select>
+	<select id="selectAllmajor" resultMap="majorResultMap">
+		select
+		major,departmentName from class_info,department where
+		department.department_id = class_info.affiliation group by major
+	</select>
+	<select id="searchAffiliation" parameterType="String"
+		resultType="long">
+		select department_id from department where departmentName =
+		#{affiliationName}
+	</select>
+	<select id="selectmajorBydeptName" parameterType="String"
+		resultMap="majorResultMap">
+		select major,affiliation from class_info where affiliation =
+		(select department_id from department where departmentName =
+		#{deptName}) group by major
+	</select>
+	<select id="selectAllgrade" resultMap="gradeResultMap">
+		select grade,major from
+		class_info group by major , grade
+	</select>
+	<select id="selectgradeBydeptName" parameterType="String"
+		resultMap="gradeResultMap">
+		select grade from class_info where major = #{deptName} group
+		by grade
+	</select>
+	<select id="selectAllclass" resultMap="classResultMap">
+		select
+		class_id,class,grade,major
+		from class_info group by major , grade ,
+		class
+	</select>
+	<select id="selectclassBydeptName" parameterType="map"
+		resultMap="classResultMap">
+		select className,class_id from class_info where major =
+		#{majorName} and grade = #{deptName} group by className
+	</select>
+	<select id="getSchool1" resultMap="schoolResultMap">
+		select schoolName from
+		department group by schoolName
+	</select>
+	<select id="getAllDeptInfo" parameterType="com.hxy.core.dept.entity.NewDeptInfo"
+		resultMap="newDeptInfoResultMap">
+		select * from class_info
+	</select>
+	<insert id="insert_department" parameterType="com.hxy.core.dept.entity.Department"
+		useGeneratedKeys="true" keyProperty="department_id">
+		insert into
+		department(schoolName,departmentName)
+		values(#{schoolName},#{departmentName});
+	</insert>
+	<insert id="insert_new" parameterType="com.hxy.core.dept.entity.NewDeptInfo"
+		useGeneratedKeys="true" keyProperty="dept_id">
+		insert into
+		class_info(schoolName,college,major,grade,class,modifyTime,affiliation)
+		values(#{schoolName},#{college},#{major},#{grade},#{className},#{modifyTime},#{affiliation});
+	</insert>
+	<select id="selectDepart" parameterType="list" resultMap="deptResultMap">
+		select * from cy_dept_info where length(dept_id)=10
+		<if test="list!=null and list.size()>0">
+			and
+			<foreach collection="list" open="(" separator="or" close=")"
+				item="dept">
+				dept_id like concat(#{dept.deptId},'%')
+			</foreach>
+		</if>
+	</select>
+
+	<select id="selectAll1" parameterType="list" resultMap="deptResultMap">
+		select * from cy_dept_info
+		<where>
+			<if test="list!=null and list.size()>0">
+				<foreach collection="list" open="(" separator="or" close=")"
+					item="dept">
+					dept_id like concat(#{dept.deptId},'%')
+				</foreach>
+			</if>
+		</where>
+	</select>
+	<select id="selectAll2" parameterType="list" resultMap="deptResultMap">
+		select *
+		from cy_dept_info
+	</select>
+	<insert id="insert" parameterType="com.hxy.core.dept.entity.Dept"
+		useGeneratedKeys="true" keyProperty="deptId">
+		insert into
+		cy_dept_info(dept_id,dept_name,parent_id,create_time,full_name,level,alias_name)
+		values(#{deptId},#{deptName},#{parentId},#{createTime},#{fullName},#{level},#{aliasName})
+	</insert>
+	<select id="checkDeptId" parameterType="string"
+		resultType="com.hxy.core.dept.entity.Dept">
+		select * from cy_dept_info where dept_id=#{deptId}
+	</select>
+	<select id="selectOne" parameterType="string" resultMap="deptResultMap">
+		select
+		i.* from cy_dept_info i where i.dept_id=#{deptId}
+	</select>
+	<select id="selectByDeptId" parameterType="string" resultMap="deptResultMap">
+		select * from cy_dept_info where dept_id like concat(#{deptId},'%')
+	</select>
+	<delete id="delete" parameterType="list">
+		delete from cy_dept_info where dept_id in
+		<foreach collection="list" item="ids" open="(" separator=","
+			close=")">
+			#{ids}
+		</foreach>
+	</delete>
+	<select id="selectByName" parameterType="string" resultMap="deptResultMap">
+		select * from cy_dept_info where dept_name=#{deptName}
+	</select>
+	<select id="selectByNameAndParentId" parameterType="map"
+		resultMap="deptResultMap">
+		select * from cy_dept_info where parent_id=#{parentId} and
+		dept_name=#{deptName}
+		<if test="deptId!=null and deptId!=''">
+			and dept_id!=#{deptId}
+		</if>
+	</select>
+	<select id="getSchool" resultMap="deptResultMap">
+		select * from cy_dept_info
+		where LENGTH(dept_id)=6
+	</select>
+	<select id="selectAllClass" parameterType="string" resultMap="deptResultMap">
+		select * from cy_dept_info where dept_id=#{deptId}
+	</select>
+	<select id="countDept" parameterType="map" resultType="long">
+		select count(class_id) from class_info
+		<where>
+			<if test="fullName!=null and fullName!=''">
+				fullName like concat('%',#{fullName},'%')
+			</if>
+		</where>
+	</select>
+
+	<select id="selectDeptList" parameterType="map" resultMap="deptResultMap">
+		select * from cy_dept_info
+		<where>
+			<if test="fullName!=null and fullName!=''">
+				full_name like concat('%',#{fullName},'%')
+			</if>
+		</where>
+		limit #{start},#{rows}
+	</select>
+	<select id="getDepart" resultMap="deptResultMap">
+		select * from cy_dept_info
+		where LENGTH(dept_id)=6
+	</select>
+	<select id="getDepart1" resultMap="deptResultMap">
+		select * from cy_dept_info
+		where LENGTH(dept_id)=10
+	</select>
+	<select id="getDepart2" parameterType="string" resultMap="deptResultMap">
+		select
+		* from cy_dept_info where LENGTH(dept_id)=10 and parent_id=#{parentId}
+	</select>
+	<select id="getByParentId" parameterType="string" resultMap="deptResultMap">
+		select * from cy_dept_info where parent_id=#{deptId}
+	</select>
+	<select id="getById_new" parameterType="long" resultMap="departResultMap">
+		select *
+		from department where department_id = (select affiliation from
+		class_info where class_id = #{classId})
+	</select>
+	<select id="getById" parameterType="string" resultMap="deptResultMap">
+		select *
+		from cy_dept_info where dept_id=#{classId}
+	</select>
+	<update id="updateFullName" parameterType="com.hxy.core.dept.entity.Dept">
+		update cy_dept_info
+		set full_name=REPLACE(full_name,#{resourceName},#{deptName}) where
+		dept_id like concat(#{deptId},'%')
+	</update>
+	<update id="update" parameterType="com.hxy.core.dept.entity.Dept">
+		update cy_dept_info set
+		dept_name=#{deptName} where
+		dept_id =#{deptId}
+	</update>
+	<update id="updateBelong" parameterType="map">
+		update class_info set
+		affiliation=#{department_id} where
+		class_id =#{classId}
+	</update>
+	<update id="updateAliasName" parameterType="string">
+		update cy_dept_info
+		set alias_name='' where
+		alias_name =#{aliasName}
+	</update>
+	<select id="getBelong_new" parameterType="string" resultMap="departResultMap">
+		select
+		d.* from department d,class_info c where c.class_id=#{classId}
+		and c.affiliation = d.department_id
+	</select>
+	<select id="getBelong1" parameterType="string" resultMap="deptResultMap">
+		select
+		* from cy_dept_info where (alias_name='' or alias_name is null) and
+		dept_id!=#{deptId} and LENGTH(dept_id)=6
+	</select>
+	<select id="getBelong2" parameterType="string" resultMap="deptResultMap">
+		select
+		* from cy_dept_info where alias_name='' or alias_name is null and
+		dept_id!=#{deptId} and LENGTH(dept_id)=10
+	</select>
+	<select id="getByAliasName" parameterType="string" resultMap="deptResultMap">
+		select d1.*,d2.dept_id as dept_id1,d2.dept_name as dept_name1 from
+		cy_dept_info d1 left join cy_dept_info d2 on d1.dept_id =
+		d2.alias_name where d1.dept_id=#{deptId}
+	</select>
+	<select id="selectByDeptIds" parameterType="list" resultMap="deptResultMap">
+		select * from cy_dept_info where dept_id in
+		<foreach collection="list" open="(" separator="," close=")"
+			item="ids">
+			#{ids}
+		</foreach>
+	</select>
+	<select id="getByParentIdAndDeptIds" parameterType="map"
+		resultMap="deptResultMap">
+		select * from cy_dept_info where parent_id=#{deptId} and dept_id in
+		<foreach collection="list" open="(" separator="," close=")"
+			item="ids">
+			#{ids}
+		</foreach>
+	</select>
+</mapper>

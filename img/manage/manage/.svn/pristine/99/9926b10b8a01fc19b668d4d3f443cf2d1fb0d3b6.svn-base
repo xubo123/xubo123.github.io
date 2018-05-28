@@ -1,0 +1,1056 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.userbaseinfo.dao.UserBaseInfoMapper">
+	<resultMap type="com.hxy.core.userbaseinfo.entity.UserBaseInfo"
+		id="userInfoResult">
+		<id column="USER_ID" property="userId" />
+		<result column="USER_NAME" property="userName" />
+		<result column="TEL_ID" property="telId" />
+		<result column="pic_url" property="picUrl" />
+		<result column="SEX" property="sex" />
+		<result column="remarks" property="remarks" />
+		<result column="aliasname" property="aliasname" />
+		<result column="studentnumber" property="studentnumber" />
+		<result column="card" property="card" />
+		<result column="accountNum" property="accountNum" />
+		<result column="nation" property="nation" />
+		<result column="political" property="political" />
+		<result column="nationality" property="nationality" />
+		<result column="birthday" property="birthday" />
+		<result column="entranceTime" property="entranceTime" />
+		<result column="graduationTime" property="graduationTime" />
+		<result column="email" property="email" />
+		<result column="qq" property="qq" />
+		<result column="weibo" property="weibo" />
+		<result column="personalWebsite" property="personalWebsite" />
+		<result column="mailingAddress" property="mailingAddress" />
+		<result column="residentialArea" property="residentialArea" />
+		<result column="workUnit" property="workUnit" />
+		<result column="name_pinyin" property="namePinyin" />
+		<result column="position" property="position" />
+		<result column="industryType" property="industryType" />
+		<result column="enterprise" property="enterprise" />
+		<result column="workTel" property="workTel" />
+		<result column="workAddress" property="workAddress" />
+		<result column="resume" property="resume" />
+		<result column="create_time" property="createTime" />
+		<result column="full_name" property="fullName" />
+		<result column="cardType" property="cardType" />
+		<result column="status" property="status" />
+		<result column="resourceArea" property="resourceArea" />
+		<result column="studentType" property="studentType" />
+		<result column="use_time" property="useTime" />
+		<result column="departName" property="departName" />
+		<result column="departAliasName" property="departAliasName" />
+		<result column="gradeName" property="gradeName" />
+		<result column="className" property="className" />
+		<result column="isimport" property="isimport" />
+		<result column="majorName" property="majorName" />
+		<result column="majorId" property="majorId" />
+		<result column="schoolName" property="schoolName" />
+		<result column="schoolId" property="schoolId" />
+		<result column="departId" property="departId" />
+		<result column="gradeId" property="gradeId" />
+		<result column="classId" property="classId" />
+		<result column="residentialTel" property="residentialTel" />
+		<result column="class_id" property="dept_id" />
+	</resultMap>
+
+
+
+
+
+	<select id="query" parameterType="map"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select
+		u.*,c.schoolName,c.college,c.major,c.grade,c.className,c.fullName,d.department_id,d.departmentName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join department d on c.affiliation = d.department_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="studentNumber!=null and studentNumber!=''">
+				and u.studentNumber like concat('%',#{studentNumber},'%')
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="regflag!=null and regflag!='' and regflag==1">
+				and (u.appuser_id is not null and u.appuser_id!='')
+			</if>
+			<if test="regflag!=null and regflag!='' and regflag==0">
+				and (u.appuser_id is null or u.appuser_id='')
+			</if>
+		</where>
+		order by ${sort} ${order}
+		<if test="export==null">
+			limit #{start},#{rows}
+		</if>
+	</select>
+
+	<select id="count" parameterType="map" resultType="long">
+		select count(u.user_id)
+		from userbase_info u
+		left join class_info c on
+		u.class_id = c.class_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="studentNumber!=null and studentNumber!=''">
+				and u.studentNumber like concat('%',#{studentNumber},'%')
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="regflag!=null and regflag!='' and regflag==1">
+				and (u.appuser_id is not null and u.appuser_id!='')
+			</if>
+			<if test="regflag!=null and regflag!='' and regflag==0">
+				and (u.appuser_id is null or u.appuser_id='')
+			</if>
+		</where>
+	</select>
+
+
+	<insert id="save" useGeneratedKeys="true" keyProperty="user_id"
+		parameterType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		insert into
+		userbase_info(user_name,aliasname,name_pinyin,sex,nation,political,nationality,birthday,cardType,cardID,
+		entranceTime,graduationTime,studentNumber,tel_id,email,qq,weibo,residentialArea,residentialTel,
+		pic_url,workUnit,profession,avocation,create_time,status,resourceArea,studentType,programLength,class_id,remarks)
+		values(#{user_name},#{aliasname},#{name_pinyin},#{sex},#{nation},#{political},#{nationality},#{birthday},#{cardType},#{cardID},
+		#{entranceTime},#{graduationTime},#{studentNumber},#{tel_id},#{email},#{qq},#{weibo},#{residentialArea},#{residentialTel},
+		#{pic_url},#{workUnit},#{profession},#{avocation},Now(),#{status},#{resourceArea},#{studentType},#{programLength},#{class_id},#{remarks})
+	</insert>
+
+	<update id="update" parameterType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		update userbase_info set
+		user_name=#{user_name},aliasname=#{aliasname},name_pinyin=#{name_pinyin},sex=#{sex},nation=#{nation},
+		political=#{political},nationality=#{nationality},birthday=#{birthday},cardType=#{cardType},cardID=#{cardID},
+		entranceTime=#{entranceTime},graduationTime=#{graduationTime},studentNumber=#{studentNumber},tel_id=#{tel_id},
+		email=#{email},qq=#{qq},weibo=#{weibo},residentialArea=#{residentialArea},residentialTel=#{residentialTel},
+		workUnit=#{workUnit},profession=#{profession},avocation=#{avocation},resourceArea=#{resourceArea},status=#{status},
+		studentType=#{studentType},programLength=#{programLength},remarks=#{remarks}
+		<if test="class_id!=null and class_id!=0">
+			,class_id=#{class_id}
+		</if>
+		where user_id=#{user_id}
+	</update>
+
+	<delete id="delete" parameterType="list">
+		delete from userbase_info where user_id in
+		<foreach collection="list" open="(" close=")" item="ids"
+			separator=",">
+			#{ids}
+		</foreach>
+	</delete>
+	<select id="selectEmailbyId" parameterType="list" resultType="string">
+		select email from userbase_info where user_id in
+		<foreach collection="list" open="(" close=")" item="ids"
+			separator=",">
+			#{ids}
+		</foreach>
+	</select>
+	<select id="selectTelbyId" parameterType="list" resultType="string">
+		select tel_id from userbase_info where user_id in
+		<foreach collection="list" open="(" close=")" item="ids"
+			separator=",">
+			#{ids}
+		</foreach>
+	</select>
+	<delete id="deleteQuery" parameterType="string">
+		delete userbase_info from userbase_info,class_info
+		where
+		userbase_info.class_id = class_info.class_id
+		<if test="deptList!=null and deptList.size()>0">
+			<foreach collection="deptList" open="(" separator="or" close=")"
+				item="dept">
+				class_info.affiliation = #{dept.department_id}
+			</foreach>
+		</if>
+		<if test="schoolName!=null and schoolName!=''">
+			and class_info.schoolName = #{schoolName}
+		</if>
+		<if test="college!=null and college!=''">
+			and class_info.college = #{college}
+		</if>
+		<if test="major!=null and major!=''">
+			and class_info.major = #{major}
+		</if>
+		<if test="grade!=null and grade!=''">
+			and class_info.grade = #{grade}
+		</if>
+		<if test="className!=null and className!=''">
+			and class_info.className = #{className}
+		</if>
+		<if test="user_name!=null and user_name!=''">
+			and userbase_info.user_name like
+			concat('%',#{user_name},'%')
+		</if>
+		<if test="studentNumber!=null and studentNumber!=''">
+			and userbase_info.studentNumber like
+			concat('%',#{studentNumber},'%')
+		</if>
+		<if test="studentType!=null and studentType!=''">
+			and userbase_info.studentType = #{studentType}
+		</if>
+		<if test="regflag!=null and regflag!='' and regflag==1">
+			and (userbase_info.appuser_id is not null and
+			userbase_info.appuser_id!='')
+		</if>
+		<if test="regflag!=null and regflag!='' and regflag==0">
+			and (userbase_info.appuser_id is null or
+			userbase_info.appuser_id='')
+		</if>
+	</delete>
+
+	<select id="getById" parameterType="long"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select
+		u.*,c.schoolName,c.college,c.major,c.grade,c.className,c.fullName,d.department_id,d.departmentName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join department d on c.affiliation = d.department_id
+		where
+		u.user_id=#{user_id}
+	</select>
+
+	<select id="getByClass" parameterType="long"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select
+		u.*,c.schoolName,c.college,c.major,c.grade,c.className,c.fullName,d.department_id,d.departmentName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join department d on c.affiliation = d.department_id
+		where
+		u.class_id=#{class_id}
+	</select>
+
+	<select id="getSumByIds" parameterType="list"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select
+		u.*,c.schoolName,c.college,c.major,c.grade,c.className,c.fullName,d.department_id,d.departmentName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join department d on c.affiliation = d.department_id
+		where
+		u.user_id in
+		<foreach collection="list" open="(" close=")" item="ids"
+			separator=",">
+			#{ids}
+		</foreach>
+	</select>
+
+	<select id="getAlumniInfoByIds" parameterType="list"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select
+		u.*,c.schoolName,c.college,c.major,c.grade,c.className,c.fullName,d.department_id,d.departmentName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join department d on c.affiliation = d.department_id
+		where
+		u.user_id in
+		<foreach collection="list" open="(" close=")" item="ids"
+			separator=",">
+			#{ids}
+		</foreach>
+	</select>
+	<select id="getPhoneOrEmailList" parameterType="map"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select u.*,GROUP_CONCAT(u.user_id) as
+		allUser_id,GROUP_CONCAT(REPLACE(c.fullName,',',' ')) as allClassName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join appuser_group ag on u.appuser_id = ag.appuser_id
+		left join
+		group_board gb on ag.group_id =gb.id
+		left join department d on gb.oid =
+		d.department_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					d.department_id = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="user_id != null and user_id != ''">
+				and u.user_id = #{user_id}
+			</if>
+			<if test="phoneNotNull == true">
+				and u.tel_id is not null and tel_id!=''
+				group by u.tel_id,u.user_id,c.fullName,u.appuser_id
+			</if>
+			<if test="emailNotNull == true">
+				and u.email is not null and u.email!=''
+				group by u.email,u.user_id,c.fullName,u.appuser_id
+			</if>
+		</where>
+	</select>
+
+	<select id="querySumForAlumni" parameterType="map"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select u.*,GROUP_CONCAT(u.user_id) as
+		allUser_id,GROUP_CONCAT(REPLACE(c.fullName,',',' ')) as allClassName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		left join appuser_group ag on u.appuser_id = ag.appuser_id
+		left join
+		group_board gb on ag.group_id =gb.id
+		left join department d on gb.oid =
+		d.department_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					d.department_id = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and u.appuser_id > 0
+			</if>
+		</where>
+		group by u.user_id,c.fullName,u.appuser_id
+		order by ${sort} ${order}
+		limit #{start},#{rows}
+	</select>
+	<select id="querySum" parameterType="map"
+		resultType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		select u.*,GROUP_CONCAT(u.user_id) as
+		allUser_id,GROUP_CONCAT(REPLACE(c.fullName,',',' ')) as allClassName
+		from userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and u.appuser_id > 0
+			</if>
+		</where>
+		group by u.user_id,c.fullName,u.appuser_id
+		UNION
+		select u.*,u.user_id as
+		allUser_id,REPLACE(c.fullName,',',' ') as allClassName
+		from
+		userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and (u.appuser_id is null or u.appuser_id = 0)
+			</if>
+		</where>
+		order by ${sort} ${order}
+		limit #{start},#{rows}
+	</select>
+
+	<select id="countSum" parameterType="map" resultType="long">
+		select count(*) from
+		(
+		select u.user_id
+		from userbase_info u
+		left join
+		class_info c on u.class_id = c.class_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and u.appuser_id > 0
+			</if>
+		</where>
+		group by u.appuser_id , u.user_id
+		UNION
+		select u.user_id
+		from
+		userbase_info u
+		left join class_info c on u.class_id = c.class_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					c.affiliation = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and (u.appuser_id is null or u.appuser_id = 0)
+			</if>
+		</where>
+		) s
+
+	</select>
+	<select id="countSumForAlumni" parameterType="map" resultType="long">
+		select count(*) from
+		(
+		select u.user_id
+		from userbase_info u
+		left join
+		class_info c on u.class_id = c.class_id
+		left join appuser_group ag on
+		u.appuser_id = ag.appuser_id
+		left join group_board gb on ag.group_id
+		=gb.id
+		left join department d on gb.oid = d.department_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					d.department_id = #{dept.department_id}
+				</foreach>
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and c.schoolName = #{schoolName}
+			</if>
+			<if test="college!=null and college!=''">
+				and c.college = #{college}
+			</if>
+			<if test="major!=null and major!=''">
+				and c.major = #{major}
+			</if>
+			<if test="grade!=null and grade!=''">
+				and c.grade = #{grade}
+			</if>
+			<if test="className!=null and className!=''">
+				and c.className = #{className}
+			</if>
+			<if test="user_name!=null and user_name!=''">
+				and u.user_name like concat('%',#{user_name},'%')
+			</if>
+			<if test="sex!=null and sex!=''">
+				and u.sex = #{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType = #{studentType}
+			</if>
+			<if test="1==1">
+				and u.appuser_id > 0
+			</if>
+		</where>
+		group by u.appuser_id , u.user_id
+		) s
+
+	</select>
+
+
+
+
+
+
+
+
+
+
+	<select id="countByDeptIdForImport" parameterType="map"
+		resultType="long">
+		select count(user_id) from userbase_info
+		where not exists(select
+		user_id from user_info where user_id = userbase_info.user_id)
+		<if test="deptList!=null and deptList.size()>0">
+			and
+			<foreach collection="deptList" open="(" separator="or" close=")"
+				item="dept">
+				user_id like concat(#{dept.deptId},'%')
+			</foreach>
+		</if>
+		<if test="telId!=null and telId!=''">
+			and tel_id like concat('%',#{telId},'%')
+		</if>
+		<if test="userName!=null and userName!=''">
+			and user_name like concat('%',#{userName},'%')
+		</if>
+		<if test="deptId1!=null and deptId1!=''">
+			and user_id like concat(#{deptId1},'%')
+		</if>
+		<if test="studentType!=null and studentType!=''">
+			and studentType =#{studentType}
+		</if>
+		<if test="majorId!=null and majorId!=0">
+			and majorId =#{majorId}
+		</if>
+		<if test="studentnumber!=null and studentnumber!=''">
+			and studentnumber like concat('%',#{studentnumber},'%')
+		</if>
+		<if test="residentialArea!=null and residentialArea!=''">
+			and residentialArea like
+			concat('%',#{residentialArea},'%')
+		</if>
+		<if test="workUnit!=null and workUnit!=''">
+			and workUnit like concat('%',#{workUnit},'%')
+		</if>
+		<if test="mailingAddress!=null and mailingAddress!=''">
+			and mailingAddress like concat('%',#{mailingAddress},'%')
+		</if>
+		<if test="isimport!=null">
+			and isimport=#{isimport}
+		</if>
+
+	</select>
+	<select id="selectByDeptIdForImport" parameterType="map"
+		resultMap="userInfoResult">
+		select u.*,
+		d.dept_name as className,
+		d1.dept_name as gradeName,
+		d2.dept_name as departName,
+		d3.dept_name as schoolName,
+		m.majorName as
+		majorName
+		from userbase_info u
+		left join cy_dept_info d on
+		LEFT(u.user_id,16)=d.dept_id
+		LEFT JOIN
+		cy_dept_info d1 ON
+		d1.DEPT_ID=LEFT(u.user_id,14)
+		LEFT JOIN cy_dept_info
+		d2 ON
+		d2.DEPT_ID=LEFT(u.user_id,10)
+		LEFT JOIN cy_dept_info d3 ON
+		d3.DEPT_ID=LEFT(u.user_id,6)
+		left join major m on m.majorId=u.majorId
+		where not exists(select user_id from user_info where user_id =
+		u.user_id)
+		<if test="deptList!=null and deptList.size()>0">
+			and
+			<foreach collection="deptList" open="(" separator="or" close=")"
+				item="dept">
+				user_id like concat(#{dept.deptId},'%')
+			</foreach>
+		</if>
+		<if test="telId!=null and telId!=''">
+			and tel_id like concat('%',#{telId},'%')
+		</if>
+		<if test="userName!=null and userName!=''">
+			and user_name like concat('%',#{userName},'%')
+		</if>
+		<if test="deptId1!=null and deptId1!=''">
+			and user_id like concat(#{deptId1},'%')
+		</if>
+		<if test="studentType!=null and studentType!=''">
+			and studentType =#{studentType}
+		</if>
+		<if test="majorId!=null and majorId!=0">
+			and u.majorId =#{majorId}
+		</if>
+		<if test="studentnumber!=null and studentnumber!=''">
+			and studentnumber like concat('%',#{studentnumber},'%')
+		</if>
+		<if test="residentialArea!=null and residentialArea!=''">
+			and case when residentialArea is not null and
+			residentialArea!=''
+			then residentialArea like
+			concat('%',#{residentialArea},'%')
+			else
+			mobile_local like
+			concat('%',#{residentialArea},'%')
+			end
+		</if>
+		<if test="workUnit!=null and workUnit!=''">
+			and workUnit like concat('%',#{workUnit},'%')
+		</if>
+		<if test="mailingAddress!=null and mailingAddress!=''">
+			and mailingAddress like concat('%',#{mailingAddress},'%')
+		</if>
+		<if test="isimport!=null">
+			and isimport=#{isimport}
+		</if>
+		limit #{start},#{rows}
+	</select>
+
+	<select id="selectByDeptIdForImportAll" parameterType="map"
+		resultMap="userInfoResult">
+		select u.*,
+		d.dept_name as className,
+		d1.dept_name as gradeName,
+		d2.dept_name as departName,
+		d3.dept_name as schoolName,
+		m.majorName as
+		majorName
+		from userbase_info u
+		left join cy_dept_info d on
+		LEFT(u.user_id,16)=d.dept_id
+		LEFT JOIN
+		cy_dept_info d1 ON
+		d1.DEPT_ID=LEFT(u.user_id,14)
+		LEFT JOIN cy_dept_info
+		d2 ON
+		d2.DEPT_ID=LEFT(u.user_id,10)
+		LEFT JOIN cy_dept_info d3 ON
+		d3.DEPT_ID=LEFT(u.user_id,6)
+		left join major m on m.majorId=u.majorId
+		where not exists(select user_id from user_info where user_id =
+		u.user_id)
+		<if test="deptList!=null and deptList.size()>0">
+			and
+			<foreach collection="deptList" open="(" separator="or" close=")"
+				item="dept">
+				user_id like concat(#{dept.deptId},'%')
+			</foreach>
+		</if>
+		<if test="telId!=null and telId!=''">
+			and tel_id like concat('%',#{telId},'%')
+		</if>
+		<if test="userName!=null and userName!=''">
+			and user_name like concat('%',#{userName},'%')
+		</if>
+		<if test="deptId1!=null and deptId1!=''">
+			and user_id like concat(#{deptId1},'%')
+		</if>
+		<if test="studentType!=null and studentType!=''">
+			and studentType =#{studentType}
+		</if>
+		<if test="majorId!=null and majorId!=0">
+			and u.majorId =#{majorId}
+		</if>
+		<if test="studentnumber!=null and studentnumber!=''">
+			and studentnumber like concat('%',#{studentnumber},'%')
+		</if>
+		<if test="residentialArea!=null and residentialArea!=''">
+			and case when residentialArea is not null and
+			residentialArea!=''
+			then residentialArea like
+			concat('%',#{residentialArea},'%')
+			else
+			mobile_local like
+			concat('%',#{residentialArea},'%')
+			end
+		</if>
+		<if test="workUnit!=null and workUnit!=''">
+			and workUnit like concat('%',#{workUnit},'%')
+		</if>
+		<if test="mailingAddress!=null and mailingAddress!=''">
+			and mailingAddress like concat('%',#{mailingAddress},'%')
+		</if>
+	</select>
+
+	<select id="selectByDeptIdAll" parameterType="map" resultMap="userInfoResult">
+		select u.*,d.full_name from userbase_info u left join cy_dept_info d
+		on LEFT(u.user_id,16)=d.dept_id
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					user_id like concat(#{dept.deptId},'%')
+				</foreach>
+			</if>
+			<if test="telId!=null and telId!=''">
+				and tel_id like concat('%',#{telId},'%')
+			</if>
+			<if test="userName!=null and userName!=''">
+				and user_name like concat('%',#{userName},'%')
+			</if>
+			<if test="deptId1!=null and deptId1!=''">
+				and user_id like concat(#{deptId1},'%')
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and studentType =#{studentType}
+			</if>
+			<if test="majorId!=null and majorId!=0">
+				and u.majorId =#{majorId}
+			</if>
+			<if test="studentnumber!=null and studentnumber!=''">
+				and studentnumber like concat('%',#{studentnumber},'%')
+			</if>
+			<if test="residentialArea!=null and residentialArea!=''">
+				and case when residentialArea is not null and
+				residentialArea!=''
+				then residentialArea like
+				concat('%',#{residentialArea},'%')
+				else
+				mobile_local like
+				concat('%',#{residentialArea},'%')
+				end
+			</if>
+			<if test="workUnit!=null and workUnit!=''">
+				and workUnit like concat('%',#{workUnit},'%')
+			</if>
+			<if test="mailingAddress!=null and mailingAddress!=''">
+				and mailingAddress like concat('%',#{mailingAddress},'%')
+			</if>
+		</where>
+	</select>
+	<select id="selectAllByDeptId" parameterType="string" resultMap="userInfoResult">
+		select * from userbase_info where user_id like concat(#{deptId},'%')
+	</select>
+
+
+
+	<update id="updateOthers" parameterType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		update userbase_info set
+		aliasname=#{aliasname},tel_id=#{telId},email=#{email},qq=#{qq},
+		remarks=#{remarks},nation=#{nation},political=#{political},nationality=#{nationality},
+		birthday=#{birthday},weibo=#{weibo},personalWebsite=#{personalWebsite},
+		mailingAddress=#{mailingAddress},residentialArea=#{residentialArea},workUnit=#{workUnit},position=#{position},
+		industryType=#{industryType},enterprise=#{enterprise},workTel=#{workTel},workAddress=#{workAddress},status=#{status},residentialTel=#{residentialTel}
+		where user_id=#{userId}
+	</update>
+
+	<select id="selectUserToGetTel" resultMap="userInfoResult">
+		select u.*,d.full_name
+		from userbase_info u left join cy_dept_info d on
+		LEFT(u.user_id,16)=d.dept_id where tel_id is not null and tel_id!=''
+	</select>
+	<select id="selectUserByClassIdAndName" parameterType="map"
+		resultMap="userInfoResult">
+		select user_id,card,accountNum,sex from userbase_info where
+		user_id like concat(#{classId},'%') and user_name=#{userName}
+	</select>
+	<update id="updateUserAccountNum" parameterType="map">
+		update
+		userbase_info set accountNum=#{accountNum} where user_id=#{userId}
+	</update>
+	<select id="selectAllProByUserId" parameterType="map" resultMap="userInfoResult">
+		select * from userbase_info where user_id=#{userId}
+	</select>
+	<select id="selectAllUserByClassId" parameterType="map"
+		resultMap="userInfoResult">
+		select * from userbase_info where user_id like
+		concat(#{classId},'%')
+	</select>
+	<select id="selectCard" parameterType="map" resultMap="userInfoResult">
+		select user_id,user_name,tel_id,telpic_url,studentnumber,sex,card
+		from
+		userbase_info where user_id in
+		<foreach collection="list" item="id" open="(" separator=","
+			close=")">
+			#{id}
+		</foreach>
+	</select>
+	<select id="selectByUserName" parameterType="map" resultMap="userInfoResult">
+		select
+		user_id,user_name,tel_id,telpic_url,studentnumber,sex,card,accountNum
+		from userbase_info where user_name=#{userName}
+	</select>
+	<select id="selectUserInClass" parameterType="map" resultType="long">
+		select count(user_id) from userbase_info where user_id like
+		concat(#{classId},'%') and user_name in
+		<foreach collection="list" item="userName" open="(" separator=","
+			close=")">
+			#{userName}
+		</foreach>
+	</select>
+	<select id="selectUserInfo" parameterType="map" resultMap="userInfoResult">
+		select * from userbase_info where user_id like concat(#{gmid},'%')
+		and
+		user_name=#{name}
+	</select>
+	<update id="updateTelId" parameterType="map" flushCache="true">
+		update
+		userbase_info set tel_id=#{telId},use_time=#{useTime} where
+		user_id=#{userId}
+	</update>
+	<select id="selectAll" resultMap="userInfoResult">
+		select u.*,
+		d.className as
+		className,
+		d.grade as gradeName,
+		d.college as departName,
+		d.schoolName as
+		schoolName,
+		d.major as majorName
+		from userbase_info u , class_info d
+		where u.class_id =
+		d.class_id
+
+	</select>
+	<select id="countFor" parameterType="map" resultType="long">
+		select count(user_id) from userbase_info
+		<where>
+			<if test="telId!=null and telId!=''">
+				and tel_id like concat('%',#{telId},'%')
+			</if>
+			<if test="userName!=null and userName!=''">
+				and user_name like concat('%',#{userName},'%')
+			</if>
+		</where>
+	</select>
+	<select id="selectListFor" parameterType="map" resultMap="userInfoResult">
+		select u.*,d.full_name,d1.dept_name as className,d2.dept_name as
+		gradeName,d3.dept_name as departName from userbase_info u left join
+		cy_dept_info d on LEFT(u.user_id,16)=d.dept_id
+		LEFT JOIN cy_dept_info
+		d1 ON d1.DEPT_ID = LEFT(u.user_id,16)
+		LEFT JOIN cy_dept_info d2 ON
+		d2.DEPT_ID=LEFT(u.user_id,14)
+		LEFT JOIN cy_dept_info d3 ON
+		d3.DEPT_ID=CONCAT(LEFT(u.user_id,5),'0',substring(u.user_id,7,3),'0')
+		<where>
+			<if test="telId!=null and telId!=''">
+				and tel_id like concat('%',#{telId},'%')
+			</if>
+			<if test="userName!=null and userName!=''">
+				and user_name like concat('%',#{userName},'%')
+			</if>
+		</where>
+		limit #{start},#{rows}
+	</select>
+	<select id="selectByUserIds" parameterType="map" resultMap="userInfoResult">
+		select * from userbase_info where user_id in
+		<foreach collection="list" open="(" separator="," close=")"
+			item="id">
+			#{id}
+		</foreach>
+	</select>
+	<update id="updateImport" parameterType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		update userbase_info set
+		isimport=1 where user_id=#{userId}
+	</update>
+
+	<select id="selectByDeptIdForExport" parameterType="map"
+		resultMap="userInfoResult">
+		select u.*,
+		d.class as className,
+		d.grade as gradeName,
+		d1.departmentName as departName,
+		d1.schoolName as schoolName,
+		d.major as
+		majorName
+		from userbase_info u ,class_info d,department d1
+		<where>
+			<if test="deptList!=null and deptList.size()>0">
+				<foreach collection="deptList" open="(" separator="or"
+					close=")" item="dept">
+					user_id like concat(#{dept.deptId},'%')
+				</foreach>
+			</if>
+			<if test="telId!=null and telId!=''">
+				and tel_id like concat('%',#{telId},'%')
+			</if>
+			<if test="userName!=null and userName!=''">
+				and user_name like concat('%',#{userName},'%')
+			</if>
+			<if test="deptId1!=null and deptId1!=''">
+				and user_id like concat(#{deptId1},'%')
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and studentType =#{studentType}
+			</if>
+			<if test="majorId!=null and majorId!=0">
+				and u.majorId =#{majorId}
+			</if>
+			<if test="studentnumber!=null and studentnumber!=''">
+				and studentnumber like concat('%',#{studentnumber},'%')
+			</if>
+			<if test="residentialArea!=null and residentialArea!=''">
+				and case when residentialArea is not null and
+				residentialArea!=''
+				then residentialArea like
+				concat('%',#{residentialArea},'%')
+				else
+				mobile_local like
+				concat('%',#{residentialArea},'%')
+				end
+			</if>
+			<if test="workUnit!=null and workUnit!=''">
+				and workUnit like concat('%',#{workUnit},'%')
+			</if>
+			<if test="mailingAddress!=null and mailingAddress!=''">
+				and mailingAddress like concat('%',#{mailingAddress},'%')
+			</if>
+			<if test="schoolName!=null and schoolName!=''">
+				and d1.schoolName = #{schoolName}
+			</if>
+			<if test="departName!=null and departName!=''">
+				and d1.departmentName = #{departName}
+			</if>
+			<if test="majorName!=null and majorName!=''">
+				and d.major = #{majorName}
+			</if>
+			<if test="gradeName!=null and gradeName!=''">
+				and d.grade = #{gradeName}
+			</if>
+			<if test="className!=null and className!=''">
+				and d.class = #{className}
+			</if>
+			and u.class_id = d.class_id and d.affiliation = d1.department_id
+		</where>
+	</select>
+	<select id="selectByMobile" resultMap="userInfoResult">
+		select * from
+		userbase_info where tel_id is not null and tel_id!=''
+	</select>
+	<update id="updateMobile" parameterType="com.hxy.core.userbaseinfo.entity.UserBaseInfo">
+		update userbase_info set
+		tel_id=#{telId} where user_id=#{userId}
+	</update>
+
+	<update id="updateRelationship" parameterType="map">
+		update
+		appuser_group set group_id=#{groupId} where appuser_id=#{userId} and
+		grouptype = #{type}
+	</update>
+</mapper>

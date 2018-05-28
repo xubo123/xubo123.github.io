@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.project.dao.ProjectMapper">
+	<resultMap type="com.hxy.core.project.entity.Project" id="projectResultMap">
+		<id column="projectId" property="projectId" />
+		<result column="projectName" property="projectName" />
+		<result column="donationMoney" property="donationMoney" />
+		<result column="remark" property="remark" />
+		<result column="createTime" property="createTime" />
+		<result column="createId" property="createId" />
+		<result column="seq" property="seq" />
+		<result column="introduction" property="introduction"/>
+		<result column="content" property="content"/>
+		<result column="projectPic" property="projectPic"/>
+		<association property="user" column="createId" javaType="com.hxy.core.user.entity.User">
+			<id column="userId" property="userId" />
+			<result column="userName" property="userName" />
+		</association>
+	</resultMap>
+	<insert id="save" parameterType="com.hxy.core.project.entity.Project">
+		insert into project(projectName,remark,createTime,createId,seq,introduction,content,projectPic) values(#{projectName},#{remark},#{createTime},#{createId},#{seq},#{introduction},#{content},#{projectPic})
+	</insert>
+	<select id="selectList" parameterType="map" resultMap="projectResultMap">
+		select p.projectId,p.projectName,p.createTime,p.seq,u.userName,(SELECT SUM(payMoney) from donation d WHERE d.projectId = p.projectId ) as donationMoney from project p left join user u on p.createId = u.userId
+		<where>
+			<if test="projectName!=null and projectName!=''">
+				projectName like concat('%',#{projectName},'%')
+			</if>
+		</where>
+		order by seq
+		limit #{start},#{rows}
+	</select>
+	<select id="countProject" parameterType="map" resultType="long">
+		select count(projectId) from project
+		<where>
+			<if test="projectName!=null and projectName!=''">
+				projectName like concat('%',#{projectName},'%')
+			</if>
+		</where>
+	</select>
+	<select id="selectByProjectName" parameterType="string" resultMap="projectResultMap">
+		select * from project where projectName=#{projectName}
+	</select>
+	<select id="selectById" parameterType="long" resultMap="projectResultMap">
+		select p.*,u.userName,(SELECT SUM(payMoney) from donation d WHERE d.projectId = p.projectId ) as donationMoney from project p left join user u on p.createId = u.userId where p.projectId=#{projectId}
+	</select>
+	<delete id="delete" parameterType="list">
+		delete from project where projectId in
+		<foreach collection="list" open="(" separator="," close=")" item="projectId">
+			#{projectId}
+		</foreach>
+	</delete>
+	<select id="selectByProjectNameAndProjectId" parameterType="com.hxy.core.project.entity.Project" resultMap="projectResultMap">
+		select * from project where projectId!=#{projectId} and projectName=#{projectName}
+	</select>
+	<update id="update" parameterType="com.hxy.core.project.entity.Project">
+		update project set projectName=#{projectName},remark=#{remark},seq=#{seq},introduction=#{introduction},content=#{content},projectPic=#{projectPic} where projectId=#{projectId}
+	</update>
+	<select id="selectAll" resultMap="projectResultMap">
+		select projectId,projectName,projectPic from project
+	</select>
+	<select id="selectTop6" resultMap="projectResultMap">
+		select projectId,projectName,introduction,projectPic from project order by seq asc limit 0,6
+	</select>
+	<select id="selectTotalCount" resultType="long">
+		select count(projectId) from project
+	</select>
+	<select id="selectMore" parameterType="map" resultMap="projectResultMap">
+		select projectId,projectName,introduction,projectPic from project order by seq asc limit #{start},#{rows}
+	</select>
+	<update id="updateDonationMoney" parameterType="com.hxy.core.project.entity.Project">
+		update project set donationMoney=#{donationMoney} where projectId=#{projectId}
+	</update>
+</mapper>

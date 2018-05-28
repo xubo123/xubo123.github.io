@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.dict.dao.DictMapper">
+	<resultMap type="com.hxy.core.dict.entity.Dict" id="dictResultMap">
+		<id column="dict_id" property="dictId" />
+		<result column="dict_type_id" property="dictTypeId" />
+		<result column="dict_name" property="dictName" />
+		<result column="dict_value" property="dictValue" />
+	</resultMap>
+	<delete id="deleteDict" parameterType="list">
+		delete from dict where
+		dict_id =#{id}
+	</delete>
+	<delete id="deleteByDictTypeId" parameterType="long">
+		delete from dict
+		where dict_type_id=#{dictTypeId}
+	</delete>
+	<delete id="deleteDictbyTagId" parameterType="long">
+		delete from dict where dict_id in (select dict_id from news_tag where
+		tagId in
+		<foreach collection="list" item="ids" open="(" separator=","
+			close=")">
+			#{ids}
+		</foreach>
+		)
+	</delete>
+	<insert id="addDict" useGeneratedKeys="true" keyProperty="dictId"
+		parameterType="com.hxy.core.dict.entity.Dict">
+		insert into dict(dict_name,dict_type_id,dict_value)
+		values(#{dictName},#{dictTypeId},#{dictValue})
+	</insert>
+	<select id="selectDict" parameterType="map" resultMap="dictResultMap">
+		select dict_id,dict_name,dict_type_id,dict_value from dict where
+		dict_type_id=#{dictTypeId}
+		<if test="dictName!=null and dictName!=''">
+			and dict_name like concat('%',#{dictName},'%')
+		</if>
+		limit #{start},#{rows}
+	</select>
+	<select id="countDict" parameterType="map" resultType="long">
+		select count(dict_id) from dict where dict_type_id=#{dictTypeId}
+		<if test="dictName!=null and dictName!=''">
+			and dict_name like concat('%',#{dictName},'%')
+		</if>
+	</select>
+	<select id="selectDictById" parameterType="int" resultMap="dictResultMap">
+		select dict_id,dict_name,dict_type_id,dict_value from dict where
+		dict_id=#{id}
+	</select>
+	<update id="updateDict" parameterType="com.hxy.core.dict.entity.Dict">
+		update dict set
+		dict_name=#{dictName},dict_value=#{dictValue} where dict_id=#{dictId}
+	</update>
+	<select id="selectByDictTypeValue" parameterType="map"
+		resultMap="dictResultMap">
+		select dict_id,dict_name,dict_type_id,dict_value from dict where
+		dict_type_id in (select dict_type_id from dict_type where
+		dict_type_value=#{dictTypeValue})
+		<if test="value==100">
+			and <![CDATA[dict_value<=#{value}]]>
+		</if>
+		<if test="value==101">
+			and <![CDATA[dict_value>=#{value}]]>
+		</if>
+	</select>
+	<select id="selectByDictTypeId" parameterType="long" resultMap="dictResultMap">
+		select * from dict where dict_type_id=#{dictTypeId}
+	</select>
+</mapper>

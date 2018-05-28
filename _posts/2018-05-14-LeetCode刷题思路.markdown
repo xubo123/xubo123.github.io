@@ -11,6 +11,8 @@ tags:
 ---
 # LeetCode刷题思路
 
+## 数据搜索及查找
+
 ### 题目1:如何找到两个排序数组的中位数？(LeetCode4:Median of Two Sorted Arrays)
 
 * 描述：给定两个排序的数组a，b长度分别为m，n找出这两个数组的中位数，时间复杂度为O(log(m+n))
@@ -22,6 +24,68 @@ tags:
 3. 同上，a[k/2-1] < b[k/2-1],第k大的数肯定不可能在a[0..k/2-1]之间
 
 要是m,n其中有一个长度小于k/2,则取长度和k/2的较小值来进行切割。
+
+## 题目十二：在翻转数组中查找指定数据（LeetCode33: Search in Rotated Sorted Array）
+
+翻转数组在剑指offer中有相关描述，这题也是剑指offer面试题11的很好的延伸，思路利用二分法来进行数据搜索，需要注意的是，如何根据nums[mid]和查找目标target的大小关系进行范围的缩小，分为两种情况：
+
+{% highlight c++ %}
+
+class Solution {
+public:
+    int search(vector<int>& nums, int target) {
+        if(nums.empty()){
+            return -1;
+        }
+        int low = 0,high = nums.size()-1,mid = 0;
+        while(low < high){
+            mid = (low+high)/2;
+            //情况1:中切节点后面的部分不为递增数列
+            if(nums[mid]>nums[high]){
+                if(nums[mid] > target){
+                    if(target > nums[high]){
+                        high = mid -1;
+                    }else if((target < nums[high])){
+                        low = mid + 1;
+                    }else {
+                        return high;
+                    }     
+                }else if(nums[mid] < target){
+                    low = mid + 1;
+                }else{
+                    return mid;
+                }
+            }else if(nums[mid]<=nums[high] ){
+            // 情况2:中切节点后面的部分为递增序列
+                if(nums[mid] > target){
+                    high = mid -1;
+                }else if(nums[mid] < target){
+                    if(target > nums[high]){
+                        high = mid - 1;
+                    }else if(target < nums[high]){
+                        low = mid +1;
+                    }else{
+                        return high;
+                    }
+
+                }else{
+                    return mid;
+                }
+            }
+        }
+        //确定最后一个元素是否等于target
+        if(nums[low] == target)
+            return low;
+        
+        return -1;
+        
+    }
+};
+
+{% endhighlight %}
+
+
+
 
 ## 动态规划
 
@@ -230,6 +294,57 @@ public:
 };
 
 {% endhighlight%}
+
+## 位运算
+
+### 题目十一：两个整型数做除法，不使用乘除运算符
+
+给两个整数相除，得到除数，但不能使用乘除运算符
+
+要求：
+1. 除数和被除数都是32位的整型数
+2. 除数不能为0
+3. 整型数的范围为：**[-2^31,2^31-1]**,当相除后的结果溢出时，返回2^31-1
+
+思路：使用位运算，逐个将结果中的每一位（二进制位）数求出。将除数向左<<逐个移位与被除数进行比较。
+
+{% highlight c++ %}
+class Solution {
+public:
+    int divide(int dividend, int divisor) {
+        //处理边界问题
+        long int_max = (2L<<30)-1,int_min = -(2L<<30);
+        if(dividend == int_min && divisor == -1){
+            return int_max;
+        }
+        
+        long tmp ,res = 0,res_tmp = 0;
+        //判断正负号
+        bool positive = true;
+        if((dividend > 0 && divisor<0)||(dividend < 0 && divisor > 0)){
+            positive = false;
+        }
+        long divd = labs((long)dividend);
+        long divs = labs((long)divisor);
+        
+        
+        while(divd>=divs){
+            tmp = divs;
+            res_tmp = 1;
+            while(divd >= (tmp <<= 1))
+            {
+                res_tmp <<= 1;
+            }
+            divd -= tmp >> 1;//循环一次，被除数减去一次移位后的除数
+            res += res_tmp;
+        }
+        if(positive)
+            return res;
+        else
+            return -res;
+    }
+};
+{% endhiglight %}
 
 ## 其它
 
@@ -469,3 +584,140 @@ public List<List<Integer>> threeSum(int[] num) {
     return res;
 }
 {% endhighlight %}
+
+### 题目九:产生所有可能的有效括号组合（Generate Parentheses）
+
+题目描述：给定一个数字n，给出n个括号所有有效的组合方式。如给定3，则输出结果是：
+
+```
+[
+  "((()))",
+  "(()())",
+  "(())()",
+  "()(())",
+  "()()()"
+]
+```
+
+回溯法：见剑指offer中机器人的运动范围，这个题目也可以用一样的思路来考虑:
+
+![tracing_back.png](/img/tracing_back.png)
+
+和机器人走格子类似，横坐标是'('的已使用个数，纵坐标是')'的已使用个数，机器人走到的每一个格子都必须满足横坐标x>=纵坐标y。求有多少条路径满足从start走到end格子。
+
+回溯法和递归的区别：
+
+* 回溯不断调用自身，调用到最后即得到问题的答案。(将问题不断深入，穷尽每一种可能)
+* 递归则是不断调用自身，直到最小问题得到解决后，在通过**不断返回**解决大问题，返回到第一次调用的函数才得到答案。（将问题不断分解，解决最小问题，再逐个解决大问题，最后得到整个问题的答案。）
+
+本题代码：
+{% highlight c++ %}
+
+class Solution {
+public:
+    vector<string> generateParenthesis(int n) {
+        string str = "(";
+        vector<string> result;
+        generateParenthesis_x(result,n-1,n,str);
+        return result;
+        
+    }
+    
+    void generateParenthesis_x(vector<string> & vec,int s_count,int e_count,string &str){
+        if(s_count<e_count&&s_count>0){//两个方向
+            string tmp1 = str;
+            tmp1.push_back('(');
+            generateParenthesis_x(vec,s_count-1,e_count,tmp1);
+            string tmp2 = str;
+            tmp2.push_back(')');
+            generateParenthesis_x(vec,s_count,e_count-1,tmp2);
+            return;
+        }else if(s_count<e_count&&s_count==0){//一个方向
+            string tmp3 = str;
+            tmp3.push_back(')');
+            generateParenthesis_x(vec,s_count,e_count-1,tmp3);
+        }else if(s_count==e_count&&s_count>0){//一个方向
+            string tmp4 = str;
+            tmp4.push_back('(');
+            generateParenthesis_x(vec,s_count-1,e_count,tmp4);
+        }else{
+            vec.push_back(str);//走到end
+        }
+        
+    }
+};
+
+{% endhighlight %}
+
+## 题目十：合并k个排序链表（Leetcode23: Merge k Sorted Lists）
+
+将k个排序链表合并成一个排序链表：
+
+```
+Input:
+[
+  1->4->5,
+  1->3->4,
+  2->6
+]
+Output: 1->1->2->3->4->4->5->6
+```
+解决方法：https://leetcode.com/problems/merge-k-sorted-lists/solution/
+
+思路1：用优先级队列，或红黑树实现的multimap结构保存每条链表的第一个元素，然后从这些元素中获取最小值（基于multimap或优先级队列很容易实现）插入新的链表。
+
+PS:注意当创建来的链表为空时的处理
+
+代码：
+```
+/**
+ * Definition for singly-linked list.
+ * struct ListNode {
+ *     int val;
+ *     ListNode *next;
+ *     ListNode(int x) : val(x), next(NULL) {}
+ * };
+ */
+class Solution {
+public:
+    ListNode* mergeKLists(vector<ListNode*>& lists) {
+        multimap<int,ListNode*> first_map;
+        ListNode* new_list = NULL;
+        ListNode* cur= NULL;
+        ListNode* cur_ptr = NULL;
+        for(int i=0;i<lists.size();i++){
+            if(lists[i]!=NULL)
+                first_map.insert(make_pair(lists[i]->val,lists[i]));
+        }
+        //初始化链表头
+        if(!first_map.empty()){
+            auto iter0 = first_map.begin();
+            new_list = cur = new ListNode(iter0->first);
+            cur_ptr = iter0->second;
+            first_map.erase(iter0);
+            if(cur_ptr->next!=NULL){
+                first_map.insert(make_pair(cur_ptr->next->val,cur_ptr->next));
+        }
+        //每获取一个最小值，需要将对应链表下一个最小值添加到map中来
+        while(!first_map.empty()){
+            auto iter = first_map.begin();
+            ListNode *tmp = new ListNode(iter->first);
+            cur->next = tmp;
+            cur = tmp;
+            cur_ptr = iter->second;
+            first_map.erase(iter);
+            if(cur_ptr->next!=NULL){
+                first_map.insert(make_pair(cur_ptr->next->val,cur_ptr->next));
+            }
+            
+        }
+        }
+        
+        return new_list;
+    }
+};
+```
+
+思路2:暴力求解，逐个将两条链表合并成一条，直到所有链表都被合并
+
+思路3:归并法，将所有链表分为两两一组，然后合并之后，继续分组合并。。直到最后合并成一条链表

@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.classInfo.dao.ClassInfoMapper">
+	
+	<select id="query" parameterType="map" resultType="com.hxy.core.classInfo.entity.ClassInfo">
+		select c.*,d.departmentName as affiliationName,count(u.user_id) as studentNum from class_info c
+		left join department d on c.affiliation = d.department_id
+		left join userbase_info u on c.class_id=u.class_id
+		<where>
+            <if test="schoolName!=null and schoolName!=''">
+                and c.schoolName = #{schoolName}
+            </if>
+            <if test="college!=null and college!=''">
+                and c.college = #{college}
+            </if>
+            <if test="major!=null and major!=''">
+                and c.major = #{major}
+            </if>
+            <if test="grade!=null and grade!=''">
+                and c.grade = #{grade}
+            </if>
+            <if test="className!=null and className!=''">
+                and c.className = #{className}
+            </if>
+            <if test="affiliation!=null and affiliation!=0">
+                and c.affiliation = #{affiliation}
+            </if>
+        </where>
+        group by c.class_id
+		order by c.schoolName,c.college,c.major,c.grade,c.className
+		limit #{start},#{rows}
+    </select>
+
+    <select id="count" parameterType="map" resultType="long">
+        select count(c.class_id) from class_info c
+		<where>
+            <if test="schoolName!=null and schoolName!=''">
+                and c.schoolName = #{schoolName}
+            </if>
+            <if test="college!=null and college!=''">
+                and c.college = #{college}
+            </if>
+            <if test="major!=null and major!=''">
+                and c.major = #{major}
+            </if>
+            <if test="grade!=null and grade!=''">
+                and c.grade = #{grade}
+            </if>
+            <if test="className!=null and className!=''">
+                and c.className = #{className}
+            </if>
+            <if test="affiliation!=null and affiliation!=''">
+                and c.affiliation = #{affiliation}
+            </if>
+        </where>
+    </select>
+	
+		
+	<select id="getById" parameterType="long" resultType="com.hxy.core.classInfo.entity.ClassInfo">
+		select * from class_info
+		where class_id = #{class_id}
+	</select>
+	<select id="getByName" parameterType="com.hxy.core.classInfo.entity.ClassInfo" resultType="com.hxy.core.classInfo.entity.ClassInfo">
+		select * from class_info
+		where schoolName = #{schoolName}
+        and college = #{college}
+        and major = #{major}
+        and grade = #{grade}
+        and className = #{className}
+	</select>
+	
+    <select id="countStudent" parameterType="long" resultType="long">
+        select count(user_id) from userbase_info
+		where class_id = #{class_id}
+    </select>
+    
+	<insert id="insert" useGeneratedKeys="true" keyProperty="class_id" parameterType="com.hxy.core.classInfo.entity.ClassInfo" >
+		insert into class_info(schoolName, college, major, grade, className, affiliation, modifyTime, fullName, easemobGroup) 
+		value(#{schoolName}, #{college}, #{major}, #{grade}, #{className}, #{affiliation}, Now(), #{fullName}, #{easemobGroup});
+	</insert>
+	
+	<update id="update" parameterType="com.hxy.core.classInfo.entity.ClassInfo">
+		UPDATE class_info
+		<set>
+	        <if test="schoolName !=null and schoolName !='' ">
+	            schoolName = #{schoolName},
+	        </if>
+	        <if test="college!=null and college!=''">
+                college = #{college},
+            </if>
+            <if test="major!=null and major!=''">
+                major = #{major},
+            </if>
+            <if test="grade!=null and grade!=''">
+                grade = #{grade},
+            </if>
+            <if test="className!=null and className!=''">
+                className = #{className},
+            </if>
+            <if test="affiliation!=null">
+                affiliation = #{affiliation},
+            </if>
+            <if test="fullName!=null and fullName!=''">
+                fullName = #{fullName},
+            </if>
+    	</set>
+		where class_id = #{class_id}
+	</update>
+
+	
+	<delete id="delete" parameterType="long">
+		delete from class_info
+		where class_id = #{class_id}
+	</delete>
+	
+	
+	<select id="queryMajor" parameterType="map" resultType="com.hxy.core.classInfo.entity.ClassInfo">
+		select c.schoolName,c.college,c.major,d.departmentName as affiliationName,c.class_id
+		from class_info c
+		left join department d on d.department_id = c.affiliation
+		<where>
+            <if test="affiliated!=null and affiliated==-1">
+                and (c.affiliation is null or c.affiliation=0)
+            </if>
+            <if test="affiliated!=null and affiliated==1">
+                and (c.affiliation is not null and c.affiliation!=0)
+            </if>
+        </where>
+        group by c.schoolName,c.college,c.major
+		order by c.schoolName,c.college,c.major
+		limit #{start},#{rows}
+    </select>
+
+    <select id="countMajor" parameterType="map" resultType="long">
+        select count(*) from
+        (
+	        select c.schoolName,c.college,c.major from class_info c
+			<where>
+	            <if test="affiliated!=null and affiliated==-1">
+	                and (c.affiliation is null or c.affiliation=0)
+	            </if>
+	            <if test="affiliated!=null and affiliated==1">
+	                and (c.affiliation is not null and c.affiliation!=0)
+	            </if>
+	        </where>
+	        group by c.schoolName,c.college,c.major
+        ) t
+    </select>
+    
+    <update id="updateAffiliation" parameterType="map">
+		UPDATE class_info set affiliation = #{department_id}
+		where schoolName = #{schoolName}
+	    and college = #{college}
+	    and major = #{major}
+	</update>
+	<insert id="insertAppuserGroupByMajor" parameterType="map">
+		insert into appuser_group(group_id,appuser_id) select * from 
+		( 
+		select group_board.id,userbase_info.appuser_id from userbase_info,class_info,group_board
+		where userbase_info.class_id = class_info.class_id
+		and userbase_info.appuser_id is not null
+		and userbase_info.appuser_id != 0
+		and class_info.schoolName = #{schoolName}
+		and class_info.college = #{college}
+		and class_info.major = #{major}
+		and group_board.oid = #{department_id}
+		) as tb
+	</insert>
+	<delete id="deleteAppuserGroupByMajor" parameterType="map">
+		delete appuser_group from appuser_group,group_board,userbase_info,class_info
+		where appuser_group.group_id = group_board.id
+		and group_board.oid = #{department_id}
+		and appuser_group.appuser_id = userbase_info.appuser_id
+		and userbase_info.class_id = class_info.class_id
+		and class_info.schoolName = #{schoolName}
+		and class_info.college = #{college}
+		and class_info.major = #{major}
+	</delete>
+	
+	
+	<select id="getSchools" resultType="com.hxy.core.classInfo.entity.Linker">
+		select schoolName as singleName,schoolName as fullName
+		from class_info
+        group by schoolName
+    </select>
+    
+    <select id="getColleges" parameterType="map" resultType="com.hxy.core.classInfo.entity.Linker">
+		select college as singleName,CONCAT_WS(',',schoolName,college) as fullName
+		from class_info
+		where schoolName = #{schoolName}
+        group by schoolName,college
+    </select>
+    
+    <select id="getMajors" parameterType="map" resultType="com.hxy.core.classInfo.entity.Linker">
+		select major as singleName,CONCAT_WS(',',schoolName,college,major) as fullName
+		from class_info
+		where schoolName = #{schoolName}
+		and college = #{college}
+        group by schoolName,college,major
+    </select>
+    
+    <select id="getGrades" parameterType="map" resultType="com.hxy.core.classInfo.entity.Linker">
+		select grade as singleName,CONCAT_WS(',',schoolName,college,major,grade) as fullName
+		from class_info
+		where schoolName = #{schoolName}
+		and college = #{college}
+		and major = #{major}
+        group by schoolName,college,major,grade
+    </select>
+    
+    <select id="getClasses" parameterType="map" resultType="com.hxy.core.classInfo.entity.Linker">
+		select className as singleName,class_id as fullName
+		from class_info
+		where schoolName = #{schoolName}
+		and college = #{college}
+		and major = #{major}
+		and grade = #{grade}
+    </select>
+    
+    <select id="getAllClass" resultType="com.hxy.core.classInfo.entity.ClassInfo">
+		select * from class_info
+    </select>
+</mapper>

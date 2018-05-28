@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.donation.dao.DonationMapper">
+	<resultMap type="com.hxy.core.donation.entity.Donation" id="donationResultMap">
+		<id column="donationId" property="donationId" />
+		<result column="user_id" property="userId" />
+		<result column="orderNo" property="orderNo" />
+		<result column="projectId" property="projectId" />
+		<result column="money" property="money" />
+		<result column="donationTime" property="donationTime" />
+		<result column="payMoney" property="payMoney" />
+		<result column="payTime" property="payTime" />
+		<result column="payStatus" property="payStatus" />
+		<result column="payMode" property="payMode" />
+		<result column="payDetail" property="payDetail" />
+		<result column="confirmStatus" property="confirmStatus" />
+		<result column="confirmTime" property="confirmTime" />
+		<result column="confirmId" property="confirmId" />
+		<result column="remark" property="remark" />
+		<result column="message" property="message" />
+		<result column="totalPeople" property="totalPeople" />
+		<result column="totalMoney" property="totalMoney" />
+		<result column="totalDonationMoney" property="totalDonationMoney" />
+		<result column="flag" property="flag" />
+
+		<result column="x_name" property="x_name" />
+		<result column="x_phone" property="x_phone" />
+		<result column="x_email" property="x_email" />
+		<result column="x_address" property="x_address" />
+		<result column="x_school" property="x_school" />
+		<result column="x_depart" property="x_depart" />
+		<result column="x_grade" property="x_grade" />
+		<result column="x_clazz" property="x_clazz" />
+		<result column="x_sex" property="x_sex" />
+		<result column="x_workunit" property="x_workunit" />
+		<result column="x_position" property="x_position" />
+		<result column="x_major" property="x_major" />
+		<result column="alipayNumber" property="alipayNumber" />
+		<result column="accountNum" property="accountNum" />
+		<result column="payMethod" property="payMethod" />
+		<result column="anonymous" property="anonymous"/>
+		<association property="project" column="projectId"
+			javaType="com.hxy.core.project.entity.Project">
+			<id column="projectId" property="projectId" />
+			<result column="projectName" property="projectName" />
+		</association>
+		<association property="user" column="confirmId"
+			javaType="com.hxy.core.user.entity.User">
+			<id column="userId" property="userId" />
+			<result column="userName" property="userName" />
+		</association>
+	</resultMap>
+	<select id="countDonationForCount" parameterType="map"
+		resultType="long">
+		select count(*) from (select count(d.x_name) as
+		totalPeople,sum(d.payMoney) as totalMoney,sum(d.money) as
+		totalDonationMoney
+		from
+		donation d
+		left join userbase_info u on
+		d.user_id = u.user_id
+		left join project p on d.projectId =
+		p.projectId
+		<where>
+			<if test="projectId!=null and projectId!=0">
+				and p.projectId=#{projectId}
+			</if>
+			<if test="sex!=null and sex!=''">
+				and x_sex=#{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType=#{studentType}
+			</if>
+			<if test="entranceTime!=null">
+				and u.entranceTime=#{entranceTime}
+			</if>
+			<!-- 按学校查询 -->
+			<if test="deptId!=null and deptId!=''">
+				and d.user_id like CONCAT(#{deptId},'%')
+			</if>
+			<if test="majorId!=null and majorId!= 0">
+				and u.majorId = #{majorId}
+			</if>
+		</where>
+		<if test="countMethod==1">
+			group by x_depart
+		</if>
+		<if test="countMethod==2">
+			group by x_grade
+		</if>
+		<if test="countMethod==3">
+			group by x_clazz
+		</if>
+		<if test="countMethod==4">
+			group by x_school
+		</if>
+		<if test="countMethod==5">
+			group by x_major
+		</if>
+		) as t
+	</select>
+
+	<!-- 捐赠统计列表数据查询 -->
+	<select id="selectDonationForCountList" parameterType="map"
+		resultMap="donationResultMap">
+		select d.*,count(d.x_name) as totalPeople,sum(d.payMoney) as
+		totalMoney,sum(d.money) as totalDonationMoney
+		from
+		donation d
+		LEFT
+		JOIN userbase_info u on d.user_id = u.user_id
+		LEFT JOIN project p on
+		d.projectId = p.projectId
+		<where>
+			<if test="projectId!=null and projectId!=0">
+				and p.projectId=#{projectId}
+			</if>
+			<if test="sex!=null and sex!=''">
+				and x_sex=#{sex}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType=#{studentType}
+			</if>
+			<if test="entranceTime!=null">
+				and u.entranceTime=#{entranceTime}
+			</if>
+			<!-- 按学校查询 -->
+			<if test="deptId!=null and deptId!=''">
+				and d.user_id like CONCAT(#{deptId},'%')
+			</if>
+			<if test="majorId!=null and majorId!= 0">
+				and u.majorId = #{majorId}
+			</if>
+		</where>
+		<if test="countMethod==1">
+			group by x_depart
+		</if>
+		<if test="countMethod==2">
+			group by x_grade
+		</if>
+		<if test="countMethod==3">
+			group by x_clazz
+		</if>
+		<if test="countMethod==4">
+			group by x_school
+		</if>
+		<if test="countMethod==5">
+			group by x_major
+		</if>
+		limit #{start},#{rows}
+	</select>
+
+	<select id="countDonation" parameterType="map" resultType="long">
+		select count(donationId) from donation d left join userbase_info u
+		on d.user_id = u.user_id left join project p on d.projectId =
+		p.projectId
+		<where>
+			<if test="userName!=null and userName!=''">
+				x_name like concat('%',#{userName},'%')
+			</if>
+			<if test="projectId!=null and projectId!=0">
+				and p.projectId=#{projectId}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType=#{studentType}
+			</if>
+			<if test="confirmStatus!=null and confirmStatus!=-1">
+				and d.confirmStatus=#{confirmStatus}
+			</if>
+			<if test="payStatus!=null and payStatus!=-1">
+				and d.payStatus=#{payStatus}
+			</if>
+			<if test="deptId!=null and deptId!=''">
+				and d.user_id like CONCAT(#{deptId},'%')
+			</if>
+			<if test="majorId!=null and majorId!= 0">
+				and u.majorId = #{majorId}
+			</if>
+			<if test="startMoney!=null and startMoney!=0.0">
+				and <![CDATA[money>=#{startMoney}]]>
+			</if>
+			<if test="endMoney!=null and endMoney!=0.0">
+				and <![CDATA[money<= #{endMoney}]]>
+			</if>
+			<if test="startTime!=null">
+				and <![CDATA[donationTime>= #{startTime}]]>
+			</if>
+			<if test="endTime!=null">
+				and <![CDATA[donationTime<= #{endTime}]]>
+			</if>
+		</where>
+	</select>
+
+	<!-- 捐赠管理分页列表数据查询 -->
+	<select id="selectDonationList" parameterType="map"
+		resultMap="donationResultMap">
+		select d.*,p.* from
+		donation d
+		LEFT JOIN userbase_info u on d.user_id
+		= u.user_id
+		LEFT JOIN project p on d.projectId = p.projectId
+		<where>
+			<if test="userName!=null and userName!=''">
+				x_name like concat('%',#{userName},'%')
+			</if>
+			<if test="projectId!=null and projectId!=0">
+				and p.projectId=#{projectId}
+			</if>
+			<if test="studentType!=null and studentType!=''">
+				and u.studentType=#{studentType}
+			</if>
+			<if test="confirmStatus!=null and confirmStatus!=-1">
+				and d.confirmStatus=#{confirmStatus}
+			</if>
+			<if test="payStatus!=null and payStatus!=-1">
+				and d.payStatus=#{payStatus}
+			</if>
+			<if test="deptId!=null and deptId!=''">
+				and d.user_id like CONCAT(#{deptId},'%')
+			</if>
+			<if test="majorId!=null and majorId!= 0">
+				and u.majorId = #{majorId}
+			</if>
+			<if test="startMoney!=null and startMoney!=0.0">
+				and <![CDATA[money>=#{startMoney}]]>
+			</if>
+			<if test="endMoney!=null and endMoney!=0.0">
+				and <![CDATA[money<= #{endMoney}]]>
+			</if>
+			<if test="startTime!=null">
+				and <![CDATA[donationTime>= #{startTime}]]>
+			</if>
+			<if test="endTime!=null">
+				and <![CDATA[donationTime<= #{endTime}]]>
+			</if>
+		</where>
+		limit #{start},#{rows}
+	</select>
+
+
+	<insert id="save" parameterType="com.hxy.core.donation.entity.Donation"
+		useGeneratedKeys="true" keyProperty="donationId">
+		insert into
+		donation(user_id,orderNo,projectId,money,donationTime,remark,message,x_name,x_phone,x_email,x_address,x_school,x_depart,x_grade,x_clazz,x_sex,x_workunit,x_position,x_major,flag,alipayNumber,payMode)
+		values(#{userId},#{orderNo},#{projectId},#{money},#{donationTime},#{remark},#{message},#{x_name},#{x_phone},#{x_email},#{x_address},#{x_school},#{x_depart},#{x_grade},#{x_clazz},#{x_sex},#{x_workunit},#{x_position},#{x_major},#{flag},#{alipayNumber},#{payMode})
+	</insert>
+	<delete id="delete" parameterType="list">
+		delete from donation where donationId in
+		<foreach collection="list" open="(" separator="," close=")"
+			item="donationId">
+			#{donationId}
+		</foreach>
+	</delete>
+	<select id="selectById" parameterType="long" resultMap="donationResultMap">
+		select
+		d.*,p.*,u1.* from donation d left join project p on
+		d.projectId =
+		p.projectId
+		left join user u1 on d.confirmId=u1.userId
+		where
+		donationId=#{donationId}
+	</select>
+	<select id="selectByOrderNo" parameterType="string" resultMap="donationResultMap">
+		select * from donation
+		where
+		orderNo=#{orderNo}
+	</select>
+	<select id="selectRandom50" resultMap="donationResultMap">
+		SELECT t1.*,p.*
+		FROM
+		donation AS t1 JOIN (SELECT ROUND(RAND() * ((SELECT MAX(donationId)
+		FROM donation)-(SELECT MIN(donationId) FROM donation))+(SELECT
+		MIN(donationId) FROM donation)) AS donationId) AS t2
+		LEFT JOIN
+		project p on t1.projectId = p.projectId
+		WHERE t1.donationId >=
+		t2.donationId
+		ORDER BY t1.donationId LIMIT 100;
+	</select>
+	<update id="update" parameterType="com.hxy.core.donation.entity.Donation">
+		update donation set
+		confirmStatus=#{confirmStatus},confirmTime=#{confirmTime},
+		confirmId=#{confirmId} where
+		donationId=#{donationId}
+	</update>
+	<update id="updateFromShouXin" parameterType="com.hxy.core.donation.entity.Donation">
+		update donation
+		set
+		payMoney=#{payMoney},payTime=#{payTime},
+		payStatus=#{payStatus},
+		payMode=#{payMode},
+		alipayNumber=#{alipayNumber}
+		where
+		orderNo=#{orderNo}
+	</update>
+	<select id="selectByNameAndPhone" parameterType="com.hxy.core.donation.entity.Donation"
+		resultMap="donationResultMap">
+		select d.*,p.projectName from donation d left join
+		project p on
+		d.projectId = p.projectId
+		where d.x_name=#{x_name} and
+		d.x_phone=#{x_phone}
+		order by donationTime desc
+	</select>
+	<select id="countDonationForMobile" parameterType="map"
+		resultType="long">
+		select count(donationId) from donation d left join
+		project p on d.projectId =
+		p.projectId
+		where
+		d.user_id=#{accountNum}
+	</select>
+	<select id="selectDonationForCountMobile" parameterType="map"
+		resultMap="donationResultMap">
+		select d.*,p.* from
+		donation d
+		LEFT JOIN project p on
+		d.projectId = p.projectId
+		where d.user_id=#{accountNum} order by
+		donationId desc
+		limit #{start},#{rows}
+	</select>
+	<select id="countDonationForMobileNew" parameterType="map"
+		resultType="long">
+		select count(donationId) from donation d left join
+		project p on d.projectId =
+		p.projectId
+		where
+		d.payStatus=1
+	</select>
+	<select id="selectDonationForCountMobileNew" parameterType="map"
+		resultMap="donationResultMap">
+		select d.*,p.* from
+		donation d
+		LEFT JOIN project p on
+		d.projectId = p.projectId
+		where d.payStatus=1 order by
+		donationId desc
+		limit #{start},#{rows}
+	</select>
+</mapper>

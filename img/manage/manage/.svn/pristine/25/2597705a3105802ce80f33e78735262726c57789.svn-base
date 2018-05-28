@@ -1,0 +1,31 @@
+package com.hxy.core.event.service;
+
+import java.util.Map;
+
+import com.hxy.base.entity.DataGrid;
+import com.hxy.core.event.entity.Event;
+import com.hxy.core.event.entity.SignUserProfile;
+
+public interface EventService {
+	
+	DataGrid<Event> dataGrid(Map<String, Object> map);
+
+	Event getById(long id);
+
+    void save(Event event);
+
+    void update(Event event);
+   
+    /**
+     * 批量删除
+     * @param id
+     */
+    void delete(String id);
+   
+    void undoDelete(long id);
+    
+    void audit(Event event);
+    
+    DataGrid<SignUserProfile> dataGridForSignUser(Map<String, Object> map);
+   
+}

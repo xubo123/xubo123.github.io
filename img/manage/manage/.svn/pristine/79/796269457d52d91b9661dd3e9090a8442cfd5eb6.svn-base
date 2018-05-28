@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.event.dao.EventMapper">
+
+    <select id="query" parameterType="map" resultType="com.hxy.core.event.entity.Event">
+        select e.*,u.userName,au.user_name as appUserName,count(es.eventId) as signupNum,gt.board_id,d.department_id,d.departmentName,
+	    <![CDATA[    
+	    	case when e.status=1 then '已取消'
+			 when e.status=2 then '已删除'
+			 when e.auditStatus=0 then '未审核'
+			 when e.auditStatus=2 then '审核未通过'			 
+		     when now() < e.signupStartTime then '未开始'
+		     when now() >= e.startTime && now() <= e.endTime then '进行中' 
+		     when now() > e.endTime then '已结束'
+		     when now() >= e.signupStartTime && now() <= e.signupEndTime then '报名中' 
+		     when now() > e.signupEndTime then '报名已截止'
+			else '' end as nowStatus
+		]]>
+       	from event e
+       	left join user u on e.created_by=u.userId
+		left join app_user au on e.userInfoId=au.id
+		left join event_sign es on e.id = es.eventId
+		left join group_topic gt on e.groupId = gt.id
+		left join group_board gb on gt.board_id = gb.id
+		left join department d on gb.oid = d.department_id
+        <where>
+         
+            <if test="userDeptList!=null and userDeptList.size()>0">
+				<foreach collection="userDeptList" open="(" separator="or"
+					close=")" item="dept">
+					gb.oid = #{dept.department_id}
+				</foreach>
+			</if>
+		 
+            <if test="title!=null and title!=''">
+                and e.title like concat('%',#{title},'%')
+            </if>
+            <if test="type!=null and type!=''">
+                and e.type = #{type}
+            </if>
+            <if test="category!=null and category!=''">
+                and e.category = #{category}
+            </if>
+            <if test="place!=null and place!=''">
+                and e.place like concat('%',#{place},'%')
+            </if>  
+            <if test="organizer!=null and organizer!=''">
+                and e.organizer like concat('%',#{organizer},'%')
+            </if>  
+            <if test="startFrom!=null and startFrom!=''">
+                and <![CDATA[e.startTime >= #{startFrom}]]>
+            </if>
+            <if test="startTo!=null and startTo!=''">
+                and <![CDATA[e.startTime <= #{startTo}]]>
+            </if>
+            <if test="endFrom!=null and endFrom!=''">
+                and <![CDATA[e.endTime >= #{endFrom}]]>
+            </if>
+            <if test="endTo!=null and endTo!=''">
+                and <![CDATA[e.endTime <= #{endTo}]]>
+            </if>
+            <if test="userInfoId!=null and userInfoId!=''">
+                and e.userInfoId = #{userInfoId}
+            </if>
+            <if test="userId!=null and userId!=''">
+                and e.userId = #{userId}
+            </if>
+            <if test="auditStatus!=null and auditStatus!=''">
+                and e.auditStatus = #{auditStatus}
+            </if>
+            <if test="status!=null and status!=''">
+                and e.status = #{status}
+            </if>
+            <if test="alumniId!=null and alumniId!=''">
+                and gb.oid = #{alumniId}
+            </if>
+        </where>
+        group by e.id,es.eventId
+        order by id desc
+        limit #{start},#{rows}
+    </select>
+
+
+    <select id="count" parameterType="map" resultType="long">
+        select count(e.id) from event e
+       	left join group_topic gt on e.groupId = gt.id
+		left join group_board gb on gt.board_id = gb.id
+        <where>
+       
+        	<if test="userDeptList!=null and userDeptList.size()>0">
+				<foreach collection="userDeptList" open="(" separator="or"
+					close=")" item="dept">
+					gb.oid = #{dept.department_id}
+				</foreach>
+			</if>
+		
+        	<if test="title!=null and title!=''">
+                and e.title like concat('%',#{title},'%')
+            </if>
+            <if test="type!=null and type!=''">
+                and e.type = #{type}
+            </if>
+            <if test="category!=null and category!=''">
+                and e.category = #{category}
+            </if>
+            <if test="place!=null and place!=''">
+                and e.place like concat('%',#{place},'%')
+            </if>  
+            <if test="organizer!=null and organizer!=''">
+                and e.organizer like concat('%',#{organizer},'%')
+            </if>  
+            <if test="startFrom!=null and startFrom!=''">
+                and <![CDATA[e.startTime >= #{startFrom}]]>
+            </if>
+            <if test="startTo!=null and startTo!=''">
+                and <![CDATA[e.startTime <= #{startTo}]]>
+            </if>
+            <if test="endFrom!=null and endFrom!=''">
+                and <![CDATA[e.endTime >= #{endFrom}]]>
+            </if>
+            <if test="endTo!=null and endTo!=''">
+                and <![CDATA[e.endTime <= #{endTo}]]>
+            </if>
+            <if test="userInfoId!=null and userInfoId!=''">
+                and e.userInfoId = #{userInfoId}
+            </if>
+            <if test="userId!=null and userId!=''">
+                and e.userId = #{userId}
+            </if>
+            <if test="auditStatus!=null and auditStatus!=''">
+                and e.auditStatus = #{auditStatus}
+            </if>
+            <if test="status!=null and status!=''">
+                and e.status = #{status}
+            </if>
+            <if test="alumniId!=null and alumniId!=''">
+                and gb.oid = #{alumniId}
+            </if>
+        </where>
+    </select>
+
+    <select id="getById" parameterType="long" resultType="com.hxy.core.event.entity.Event">
+        select e.*,u.userName,au.user_name as appUserName,count(es.eventId) as signupNum,gt.board_id,d.department_id,d.departmentName,
+        <![CDATA[  
+        	case when e.auditStatus=0 then '未审核'
+			 when e.auditStatus=2 then '审核未通过'
+			 when e.status=1 then '已取消'
+		     when now() < e.signupStartTime then '未开始'
+		     when now() >= e.startTime && now() <= e.endTime then '进行中' 
+		     when now() > e.endTime then '已结束'
+		     when now() >= e.signupStartTime && now() <= e.signupEndTime then '报名中' 
+		     when now() > e.signupEndTime then '报名已截止'
+			else '' end as nowStatus
+		]]>
+       	from event e
+       	left join user u on e.created_by=u.userId
+		left join app_user au on e.userInfoId=au.id
+		left join event_sign es on e.id = es.eventId
+		left join group_topic gt on e.groupId = gt.id
+		left join group_board gb on gt.board_id = gb.id
+		left join department d on gb.oid = d.department_id
+        where e.id=#{id}
+    </select>
+
+    <insert id="add" parameterType="com.hxy.core.event.entity.Event">
+        insert into event (title, groupId, type, category, place, content, pic, organizer, startTime, endTime, signupStartTime, signupEndTime, minPeople, maxPeople, needSignIn, signInCode, createTime, created_by, userInfoId, auditStatus, status, region)
+        values (#{title}, #{groupId}, #{type}, #{category}, #{place}, #{content}, #{pic}, #{organizer}, #{startTime}, #{endTime}, #{signupStartTime}, #{signupEndTime}, #{minPeople}, #{maxPeople}, #{needSignIn}, #{signInCode}, Now(), #{created_by}, #{userInfoId}, #{auditStatus}, 0, #{region});
+    </insert>
+
+    <update id="update" parameterType="com.hxy.core.event.entity.Event">
+        update event
+        set	title=#{title},
+            type=#{type},
+			category=#{category},
+           	place=#{place},
+	        content=#{content},
+            pic=#{pic},
+            organizer=#{organizer},
+            startTime=#{startTime},
+            endTime=#{endTime},
+            signupStartTime=#{signupStartTime},
+            signupEndTime=#{signupEndTime},
+            minPeople=#{minPeople},
+            maxPeople=#{maxPeople},
+            needSignIn=#{needSignIn},
+            signInCode = #{signInCode},
+            needNotification=#{needNotification},
+            notification=#{notification}
+        where id=#{id}
+    </update>
+    
+    
+    <update id="resetNotification" parameterType="com.hxy.core.event.entity.Event">
+    	<if test="needNotification==0">
+        	update event_sign set viewNotification=1 where eventId=#{id}
+        </if>
+        <if test="needNotification==1">
+        	update event_sign set viewNotification=0 where eventId=#{id}
+        </if>
+    </update>
+    
+    <update id="audit" parameterType="com.hxy.core.event.entity.Event">
+        update event
+        set	auditStatus=#{auditStatus},
+            auditOpinion=#{auditOpinion},
+			auditUserId=#{auditUserId},
+           	auditTime=now()
+        where id=#{id}
+    </update>
+
+    <update id="delete" parameterType="list">
+        update event set status=2 where id in
+		<foreach collection="list" item="ids" open="(" separator="," close=")">
+			#{ids}
+		</foreach>
+    </update>
+    
+    <update id="undoDelete" parameterType="long">
+        update event set status=0 where id = #{id}
+    </update>
+    
+    
+    <select id="querySignUser" parameterType="map" resultType="com.hxy.core.event.entity.SignUserProfile">
+		select es.userInfoId as appUserId,au.*,GROUP_CONCAT(REPLACE(c.fullName,',',' ')) as allClassName 
+		from event_sign es 
+		left join app_user au on es.userInfoId = au.id
+		left join userbase_info ui on FIND_IN_SET(ui.user_id,au.student_id)
+		left join class_info c on ui.class_id = c.class_id
+		where es.eventId = #{eventId}
+		group by es.userInfoId
+		order by es.signupTime
+		limit #{start},#{rows}
+    </select>
+
+    <select id="countSignUser" parameterType="map" resultType="long">
+        select count(es.id) from event_sign es 
+		where es.eventId = #{eventId}
+    </select>
+    
+   
+</mapper>

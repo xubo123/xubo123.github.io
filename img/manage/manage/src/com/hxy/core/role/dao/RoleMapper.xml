@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.role.dao.RoleMapper">
+	<resultMap type="com.hxy.core.role.entity.Role" id="roleResultMap">
+		<id column="roleId" property="roleId" />
+		<result column="roleName" property="roleName" />
+		<result column="systemAdmin" property="systemAdmin" />
+		<result column="flag" property="flag" />
+		<collection property="list" ofType="com.hxy.core.resource.entity.Resource">
+			<id column="id" property="id" />
+			<result column="name" property="name" />
+			<result column="url" property="url" />
+			<result column="pid" property="pid" />
+			<result column="iconCls" property="iconCls" />
+			<result column="type" property="type" />
+			<result column="seq" property="seq" />
+			<result column="flag" property="flag" />
+		</collection>
+	</resultMap>
+	<select id="selectRole" parameterType="map" resultMap="roleResultMap">
+		select * from role
+		<where>
+			<if test="roleName!=null and roleName!=''">
+				roleName like concat('%',#{roleName},'%')
+			</if>
+		</where>
+		limit #{start},#{rows}
+	</select>
+	<select id="countRole" parameterType="map" resultType="long">
+		select count(roleId) from role
+		<where>
+			<if test="roleName!=null and roleName!=''">
+				roleName like concat('%',#{roleName},'%')
+			</if>
+		</where>
+	</select>
+	<select id="getById" parameterType="long" resultMap="roleResultMap">
+		select *
+		from role where roleId=#{roleId}
+	</select>
+	<insert id="add" parameterType="com.hxy.core.role.entity.Role" useGeneratedKeys="true" keyProperty="roleId">
+		insert into
+		role(roleName,systemAdmin,flag)
+		values(#{roleName},#{systemAdmin},#{flag})
+	</insert>
+	<update id="update" parameterType="com.hxy.core.role.entity.Role">
+		update role set
+		roleName=#{roleName} where roleId=#{roleId}
+	</update>
+	<delete id="delete" parameterType="long">
+		delete from role where
+		roleId=#{id}
+	</delete>
+	<select id="selectResource" parameterType="long" resultMap="roleResultMap">
+		select ro.*,re.* from role ro left join role_resource oe on
+		ro.roleId=oe.roleId LEFT JOIN resource re ON oe.id=re.id where
+		ro.roleId=#{roleId}
+	</select>
+	<select id="getMenu" parameterType="long" resultMap="roleResultMap">
+		select ro.*,re.* from role ro left join role_resource oe on
+		ro.roleId=oe.roleId LEFT JOIN resource re ON oe.id=re.id where
+		ro.roleId=#{roleId}
+	</select>
+	<select id="selectAll" resultMap="roleResultMap">
+		select * from role
+	</select>
+	<!-- 中间表 -->
+	<delete id="deleteRoleAndResource" parameterType="long">
+		delete from
+		role_resource where roleId=#{id}
+	</delete>
+	<insert id="insertRoleAndResource" parameterType="map">
+		insert into
+		role_resource(roleId,id) values(#{roleId},#{id});
+	</insert>
+	<select id="selectSystemAdmin" resultMap="roleResultMap">
+		select * from role
+		where systemAdmin=1;
+	</select>
+	<select id="selectAllNoAdmin" resultMap="roleResultMap">
+		select * from role where systemAdmin=0 and flag=0
+	</select>
+	<select id="selectxAllNoAdmin" resultMap="roleResultMap">
+		select * from role where systemAdmin=0 and flag=1
+	</select>
+</mapper>

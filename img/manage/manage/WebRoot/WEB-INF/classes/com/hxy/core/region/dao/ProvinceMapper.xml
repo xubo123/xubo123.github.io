@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.hxy.core.region.dao.ProvinceMapper">
+	<resultMap type="com.hxy.core.region.entity.Province" id="provinceResultMap">
+		<id column="id" property="id" />
+		<result column="provinceName" property="provinceName" />
+		<result column="orderId" property="orderId" />
+		<result column="countryId" property="countryId" />
+	</resultMap>
+	<select id="selectByCountryId" parameterType="int" resultMap="provinceResultMap">
+		select * from province where countryId=#{countryId}
+	</select>
+</mapper>
