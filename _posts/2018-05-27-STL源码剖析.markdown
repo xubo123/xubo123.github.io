@@ -1067,10 +1067,101 @@ slist的节点和迭代器的设计比list复杂许多，运用的继承关系�
 ![stl_pic_76.png](/img/stl_pic_76.png)
 
 单向链表节点的迭代器结构：
+![stl_pic_77.png](/img/stl_pic_77.png)
+
+### 4.9.4 slist的数据结构
+
+主要内容为： 
+
+* create_node
+* destroy_node
+* swap
+* front
+* push_front
+* pop_front
+
+![stl_pic_78.png](/img/stl_pic_78.png)
+![stl_pic_79.png](/img/stl_pic_79.png)
+
+## 5.关联式容器
+
+标准的STL关联式容器为set和map两大类，以及这两大类的衍生体multiset和multimap。这些容器的底层机制均由RB-tree(红黑树)完成，RB-tree也是一个独立容器，但并不开放给外界使用。
+
+SGI STL还提供了一个不在标准规格之列的关联式容器：hash table(散列表)，以及以此hashtable为底层机制而完成的hash_set,hash_map,hash_multiset,hash_multimap
+
+关联式容器没有所谓的头和尾结构，一般而言，关联式容器的内部结构是一个平衡二叉树，STL中使用的是RB-tree
+
+![stl_pic_80.png](/img/stl_pic_80.png)
+### 5.1 红黑树相关的概念
+
+红黑树相关的概念在幕布中的 STL容器机制的底层实现中有具体介绍，概念上的内容不做过多介绍，这里主要从源码的角度来进行介绍
+
+### 5.2.3 RB-tree的节点设计
+
+红黑树节点的基本结构设计：
+
+![stl_pic_81.png](/img/stl_pic_81.png)
+
+红黑树节点设计（包含存储对象数据）：
+
+![stl_pic_82.png](/img/stl_pic_82.png)
+
+#### 5.2.4 RB-tree的迭代器
+
+红黑树的迭代器结构也分为两层，上层为迭代器的基本结构，指向红黑树节点的基本结构，下层才为红黑树的迭代器，指向红黑树的节点。和slist中的迭代器设计类似。
+
+![stl_pic_83.png](/img/stl_pic_83.png)
+
+##### 红黑树的基础迭代器结构：
+
+我们主要关注increment()和decrement()两个操作：
+
+我们要先了解红黑树的一些特殊设计：
+
+![stl_pic_86.png](/img/stl_pic_86.png)
 
 
+* increment():该函数就是找到将该红黑树进行**中序遍历**后获取的链表的下一个节点,也就是比该节点**大**的元素中**最小的**那一个
+    - 状况1:该节点有右子树，找到该右子树的最左节点
+    - 状况2:没有右子树，找到第一个该节点在其左子树上的父节点
+    - 状况3，状况4:该节点正好为根节点，且没有右子树的情况，其parent为header，而header的parent也为根节点
+* decrement():该函数就是找到将该红黑树进行**中序遍历**后获取的链表的上一个节点,也就是比该节点**小**的元素中**最大的**那一个
+    - 状况1:该节点为header节点时
+    - 状况2:该节点有左子树，找到左子树的最右节点
+    - 状况3:没有左子树，找到第一个该节点在其右子树上的父节点
+
+![stl_pic_84.png](/img/stl_pic_84.png)
+
+##### 红黑树正规迭代器
+
+红黑树正规迭代器中涉及到一些和节点保存的数据对象相关的操作：其中++和--都是利用基础迭代器中的increment()和decrement()函数实现的：
+
+![stl_pic_85.png](/img/stl_pic_85.png)
+
+#### 5.2.5 红黑树的数据结构
+
+红黑树的数据结构我们主要关注三个成员，以这三个成员为基础我们就可以获取整棵树的数据，和存放方式：
+
+* node_count:该树有多少个节点
+* header:访问红黑树的入口，left保存最小值节点，right保存最大值节点，parent保存根节点
+* key_compare:节点间的比较准则，一般为函数指针对象
+
+红黑树的初始化操作：
+
+init():主要是创建一个header节点。
+
+红黑树的插入操作：
+
+* insert_unique:将元素插入到红黑树中，且保证红黑树中的元素不重复
+* insert_equal:将元素插入到红黑树中，允许节点值重复
 
 
+红黑树结构源码：
+
+![stl_pic_87.png](/img/stl_pic_87.png)
+![stl_pic_88.png](/img/stl_pic_88.png)
+![stl_pic_89.png](/img/stl_pic_89.png)
+![stl_pic_90.png](/img/stl_pic_90.png)
 
 
 
