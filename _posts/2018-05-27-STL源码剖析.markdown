@@ -1164,6 +1164,452 @@ init():主要是创建一个header节点。
 ![stl_pic_90.png](/img/stl_pic_90.png)
 
 
+#### 5.2.7 RB-tree的元素操作
+
+上一节我们提到了红黑树的插入操作，insert_equal,insert_unique
+
+##### insert_equal(可重复插入)
+1. 遇到大节点值，往左寻找
+2. 遇到比该值小或相等的节点值，往右寻找
+3. 找到可插入点后（x==0）,直接插入
+
+![stl_pic_91.png](/img/stl_pic_91.png)
+
+##### insert_unique(不可重复插入)
+
+* 同insert_equal的插入规则一样，但是找到插入点后，还要检测是否存在重复元素
+* 一般往一棵树（没有重复数）中插入一个重复的值x'(对应树中的x)，肯定会插入到x节点的**右子树的最左节点**
+
+![stl_pic_92.png](/img/stl_pic_92.png)
+
+##### __insert(真正的插入操作)
+
+插入时需要考虑下面几个问题：
+
+* 是否在header的孩子节点上插入，需要设置header的相关指针
+* 正常插入，需要考虑header的left和right的指针变动情况
+* 设置新节点的left,right,parent指针
+* 红黑树的颜色调整
+* 红黑树的节点计数增加
+
+![stl_pic_93.png](/img/stl_pic_93.png)
+
+##### 红黑树的颜色调整：单旋转，双旋转，左旋转，右旋转
+
+这部分内容了解概念即可，源码部分见书P225面的实现。
+
+### 5.3 set
+
+* set的特性是，所有的元素都会根据元素的键值**自动排序**，set的元素不像map那样可以同时拥有实值和键值，set元素的实值就是键值
+
+* 我们**不能**通过set的迭代器**修改其元素值**，set的迭代器为const_iterator,键值是无法被修改的
+
+* set和list有相同的性质，客户端对它进行元素的新增操作时或删除操作时，原有的**迭代器都不会失效**，其实set就是一棵红黑树，红黑树就是通过链表来实现的。
+
+* STL为set提供了一组算法：
+    - set_insersection(交集)
+    - set_union(并集)
+    - set_difference(差集)
+    - set_symmetric_diffrence(对称差集)
+
+* STL的set是以**RB-tree为底层机制**，又由于set所开放的各种操作接口，RB-tree也都提供了，所以几乎所有的set操作行为，都只是转**调用**RB-tree的操作行为而已
+
+* set的实现主要是根据其成员 **rep_type t;**红黑树结构调用相应的操作实现，在插入操作上红黑树转调用的是 **insert_unique**操作。源码这里不做展示，可见书P235。
+
+```
+template<class Key,class Compare = less<Key>, class Alloc = alloc>//默认递增排序
+class set{
+    ...
+}
+//set模版参数传入键值即可
+```
+
+
+### 5.4 map
+
+map和set类似都是对RB_tree 操作的转调用，区别在于map模版参数传入键值和实值，实值可以修改，键值不能修改
+
+* key_type :键值型别
+* data_type: 实值型别
+* value_type: 节点值类型：pair
+
+map中的插入操作也是转调用RB_tree的**insert_unique**函数,源码见书P239
+
+```
+template<class Key,class T, class Compare = less<Key>,class Alloc = alloc>
+class map{
+    ...
+}
+
+```
+
+### 5.5 multiset，multimap
+
+* multiset的特性和用法和set完全相同，唯一的差别在于它允许键值重复，因为它的插入操作采用的是底层机制RB-tree的insert_equal()实现的
+
+* multimap的特性和用法和map完全相同，唯一的差别在于它允许键值重复，因为它的插入操作采用的是底层机制RB-tree的insert_equal()实现的
+
+### 5.7 hashtable
+
+hashtable的原理在 幕布的STL容器底层实现中有简单介绍，这里直接进入hashtable的源码实现部分。在STL的hash table表格内的元素为桶子bucket，表格内的每个单元不仅仅包含一个节点，而是一桶节点。
+
+哈希表的节点定义：
+
+```
+template<class Value>
+struct __hashtable_node{
+    __hashtable_node * next;
+    Value val;
+};
+```
+
+#### 5.7.3 hashtable的迭代器
+
+* hashtable的迭代器属于**单向迭代器**
+* 每一个迭代器除了拥有指向自身节点的指针**cur**
+* 还要有一根指针维护和hashtable的关系**ht**,因为在**operator++**操作时可能出现从一个bucket**跳到**下一个bucket
+
+![stl_pic_94.png](/img/stl_pic_94.png)
+
+![stl_pic_95.png](/img/stl_pic_95.png)
+
+#### 5.7.4 hashtable的数据结构
+
+hashtable的数据结构模版中需要传入6个参数：
+
+1. Value: 实值型别
+2. Key: 键值型别
+3. HashFcn: 哈希**散列函数**型别
+4. ExtractKey: 从节点中取出**键值**的方法（函数或仿函数）
+5. EqualKey: 判断两个键值是否相同的方法（函数或仿函数）
+6.  Allc: 空间配置器
+
+hashtable的五个成员：
+
+1. hash: 散列函数
+2. equals: 判断两个键值相等的函数
+3. get_key: 从一个节点获取键值的函数
+4. buckets:hashtable的实体结构，实际上就是**存储对象为node* 的vector结构**
+5. num_elements: 所有节点的数量
+
+![stl_pic_96.png](/img/stl_pic_96.png)
+
+* 虽然开链法并不要求表格的大小必须为质数，但SGI STL仍然以**质数**来设计表格大小
+* 并且预先将**28个质数**（逐渐呈现大约**两倍**的关系）计算好，以便随时访问
+* 同时提供一个函数，用来查询这28个质数中**“最接近某数并大于某数”**的质数。
+
+![stl_pic_97.png](/img/stl_pic_97.png)
+
+#### 5.7.5 hashtable的构造和内存管理
+
+hashtable的节点配置和释放函数：
+
+![stl_pic_98.png](/img/stl_pic_98.png)
+
+hashtable的构造函数：
+
+![stl_pic_99.png](/img/stl_pic_99.png)
+![stl_pic_100.png](/img/stl_pic_100.png)
+
+##### hashtable的插入操作和表格重整
+
+```
+//不可重复插入
+pair<iterator,bool> insert_unique(const value_type & obj){
+    resize(num_elements + 1);//判断是否需要表格重整
+    return insert_unique_noresize(obj);//插入表格
+}
+
+//可重复插入
+pair<iterator,bool> insert_equal(const value_type & obj){
+    resize(num_elements + 1);//判断是否需要表格重整
+    return insert_equal_noresize(obj);//插入表格
+}
+```
+
+**表格重整：**
+
+* 表格是否重建的判断原则是拿元素的个数和bucket的个数进行比较，如果前者大于后者，则需要重整，否则不需要
+![stl_pic_101.png](/img/stl_pic_101.png)
+
+将旧桶中的节点添加到新桶中的过程：
+
+![stl_pic_102.png](/img/stl_pic_102.png)
+
+**插入操作：（不允许键值重复）**
+
+先遍历要插入桶中的所有元素，是否**有相等**的节点，没有则将该节点插入到**链表头部**:
+
+![stl_pic_103.png](/img/stl_pic_103.png)
+
+**插入操作：（允许键值重复）**
+
+先遍历要插入桶中的所有元素，是否**有相等**的节点,有则插入到**相等节点位置之后**，没有则插入到链表头，这样是为了**将所有相等的节点保存在一起**
+
+![stl_pic_104.png](/img/stl_pic_104.png)
+
+
+**复制(copy_from)和整体删除(clear)**:这两个函数没什么特别的，只需要知道有这两个函数存在即可
+
+#### 5.7.7 hash散列函数
+
+SGI STL默认使用的散列函数针对char,int,long等整数型别的型别，什么也没做，只是返回其原值。而对于字符串（const char *）,设计了一个转换函数：
+
+```
+inline size_t __stl_hash_string(const char * s){
+    unsigned long h = 0;
+    for(;*s;s++){
+        h = 5*h + *s;
+    }
+    return size_t(h);
+}
+```
+
+SGI的hashtable可以为
+
+* char*
+* const char*
+* char
+* unsigned char
+* signed char
+* short
+* unsigned short
+* int
+* unsigned int
+* long
+* unsigned long
+
+为这些型别都有对应的hash函数来进行散列，这些型别以外的类型则不能使用默认的hash散列函数，需要我们自己定义后提供给hashtable模版。比如string ,double,float都需要自定义hash散列函数
+
+### 5.8 hash_set,hash_multiset,hash_map,hash_multimap
+
+* 这四个关联容器同标准的set,multiset，map,multimap的区别在于前者是使用**hashtable（无序）**为底层机制来实现的，后者使用**RB_tree（有序**）来实现的
+* 这四个关联容器的实现都是通过**转调用hashtable**的操作实现的
+* 同样的，**hash_set和hash_map**是建立在hashtable的**insert_unique**来实现的插入操作，所以没有重复的元素，**hash_multiset和hash_multimap**是建立在hashtable的**insert_equal**来实现的插入操作，允许存在重复的元素
+
+## 6. 算法
+
+STL算法总览：
+
+![stl_pic_105.png](/img/stl_pic_105.png)
+![stl_pic_106.png](/img/stl_pic_106.png)
+![stl_pic_107.png](/img/stl_pic_107.png)
+![stl_pic_108.png](/img/stl_pic_108.png)
+
+#### 6.1.3 质变算法 － 会改变操作对象之值
+
+质变算法是指运算过程中会更改区间内的元素内容：
+
+* copy: 拷贝
+* swap：互换
+* replace：替换
+* fill:填写
+* remove：删除
+* permutation：排列组合
+* partition：分割
+* random shuffling：随机重拍
+* sort：排序
+
+#### 6.1.4 非质变算法
+
+* find:查找
+* search:匹配搜索
+* count:计数
+* for_each:遍历
+* equal,mismatch:比较
+* max,min:寻找极值
+
+#### 6.1.5 STL算法的一般形式
+
+所有泛型算法的**前两个参数都是一对迭代器**，通常称为first和last,用以标示算法的操作区间，STL习惯才用**前闭后开**区间表示法，写成［first，last）。
+
+每一个迭代器可分为5类，每一个STL算法的声明都表现出它所需要的**最低程度**的迭代器类型。
+
+许多STL算法不只支持一个版本:
+
+* 这一类算法的某个版本采用缺省行为
+* 另一个版本提供额外的参数，接受外界传入的一个仿函数。
+* 如unique()缺省情况使用equality操作符，用户也可以调用另一个版本传入自定义的equality操作符
+
+质变算法通常提供两个版本：
+
+1. in-place（就地进行）版，直接改变操作对象
+2. copy版，将操作对象**复制一份副本**，然后在副本上进行修改并返回该副本，copy版总是以**__copy作为函数名称后缀**。不是所有的质变算法都有copy版，如 sort（）就没有
+
+数值算法：实现于<stl_numeric.h>，必须先包含上层头文件<numeric>
+
+* adjacent_difference()
+* accumulate()
+* inner_product()
+* partial_sum
+
+其它算法都实现于SGI的<stl.algo.h>和<stl_algobase.h>文件中,必须先包含上层头文件<algorithm>
+
+### 6.2 算法的泛化过程
+
+将算法**独立**于其所处理的**数据结构**之外，不受数据结构的羁绊为算法的泛化过程，我们使用迭代器的**观念(注意是观念，不是特殊的类，只要可以按次序访问数据结构即为迭代器，所以指针也是一种迭代器)**来完成算法的泛化过程。    
+
+### 6.3 数值算法(每个算法都有两个版本，一个使用默认操作符，一个使用自定义操作符)
+
+#### 6.3.2 累加算法accumulate
+
+```
+//版本1
+template<class InputIterator,class T>
+T accumulate(InputIterator first,InputIterator last,T init){//init防止迭代器区间为空时，要有正确的值返回
+    ...
+}
+
+//版本2:自定义操作符
+template<class InputIterator,class T>
+T accumulate(InputIterator first,InputIterator last,T init){
+    ...
+}
+```
+
+#### 6.3.3 相邻元素的差值计算：adjacent_difference
+
+partial_sum和adjacent_difference互为逆运算
+
+```
+//将迭代器范围中的第一个元素和每两个相临之间的差值从result指示的位置开始记录
+template<class InputIterator,class OutputIterator>
+OutputIterator adjacent_difference(InputIterator first,InputIterator last,OutputIterator result){
+    ...
+}
+
+//版本2:自定义减号运算符
+template<class InputIterator,class OutputIterator，class BinaryOperation>
+OutputIterator adjacent_difference(InputIterator first,InputIterator last,OutputIterator result,BinaryOperation binary_op){
+    ...
+}
+```
+
+#### 6.3.4 内积计算inner_product
+
+内积的概念：(1,2,3)X(4,5,6) = 1*4+2*4+3*6 = 30
+
+```
+//将first1到last1内的元素与从first2开始相同数量的元素做内积后返回，如果区间为空，返回init
+template<class InputIterator1,class InputIterator2,class T>
+T inner_product(InputIterator1 first1,InputIterator1 last1,InputIterator2 first2,T init){
+    ...
+}
+
+//版本2:自定义＋和*
+template<class InputIterator1,class InputIterator2,class T,class BinaryOperation1,class BinaryOperation2>
+T inner_product(InputIterator1 first1,InputIterator1 last1,InputIterator2 first2,T init,BinaryOperation1 binary_op1,BinaryOperation2 binary_op2){
+    ...
+}
+
+```
+
+#### 6.3.5 相邻元素求和partial_sum
+
+和adjacent_difference互为逆运算。不再赘述
+
+#### 6.3.6 power（非STL标准）
+
+求幂运算，可以自定义乘法运算符
+
+#### 6.3.7 iota（非STL标准）
+
+设定某个区间的内容，是其内部每一个元素从指定的value值开始，增递增状态
+
+### 6.4 基本算法
+
+#### 6.4.2 euqal,fill,fill_n,iter_swap,lexicographical_compare,max,min,mismatch,swap
+
+**equal**:
+
+```
+//版本1:比较first1到last1区间的元素和从first2开始相同数量的元素是否相等
+template<class InputIterator1,class InputIterator2>
+inline bool equal(InputIterator1 first1,InputIterator1 last1,InputIterator2 first2){
+    ...
+}
+
+//提供自定义相等操作符
+template<class InputIterator1,class InputIterator2，class BinaryPredicate>
+inline bool equal(InputIterator1 first1,InputIterator1 last1,InputIterator2 first2,BinaryPredicate binary_pred){
+    ...
+}
+```
+
+**fill**
+
+```
+//将first到last区间所有的元素都设置为value
+template<class ForwardIterator,class T>
+void fill(ForwardIterator first,ForwardIterator last,const T& value){
+    for(;first!=last;++first)
+        *first = value;
+}
+```
+
+**fill_n**
+
+
+```
+//将first开始后面n哥元素的值设置为value
+template<class OutputIterator,class Size,class T>
+OutputIterator fill_n(OutputIterator first,Size n,const T& value){
+    for(;n>0;--n,++first)
+        *first = value;
+    return first;
+}
+```
+
+当n超过容器的现有大小，会导致一些不可预期的错误。
+
+解决办法：利用inserter()产生一个**具有插入而非覆写能力**的迭代器。
+
+**iter_swap**
+
+将两个迭代器所指的元素进行交换
+
+**lexicographical_compare**
+
+以字典排序对两个序列[first1,last1)和[first2,last2)的元素进行比较，类似于字符串比较
+
+当序列1中的元素小于序列2中的元素时返回true，大于等于返回false。
+
+**max,min**
+
+返回两个对象的较大者，或较小者，可以自定义比较操作符。
+
+**mismatch**
+
+用来平行比较两个序列之间第一个不匹配点
+
+**swap**
+
+交换两个对象的内容
+
+#### 6.4.2 copy
+
+首先拷贝copy函数有三个版本，一个泛化版本，两个全特化版本
+
+* 泛化版本：传入参数都是迭代器
+    - 全泛化版本
+        + \__copy: InputIterator迭代器类型普通版本，速度慢
+        + \__copy => **__copy_d**:RandomAccessIterator迭代器类型强化版本
+    - 偏特化版本(判断指针所指对象T的赋值操作函数**是否为trivial**)
+        + \__copy_t:原生指针类型T*(trivial:调用**memmove**,否则调用 **__copy_d**)
+        + \__copy_t:常量原生指针类型const T*(trivial:调用**memmove**,否则调用 __copy_d)
+* 特化版本：传入的参数是char * 或wchar_t*,直接使用**memmove**函数进行拷贝
+
+关系如下图：
+
+![stl_pic_109.png](/img/stl_pic_109.png)
+
+* 如果**输出区间的起点位于输入区间**，copy算法便（可能）会在输入期间的（某些）元素尚未被复制之前就覆盖其值，导致错误的结果。
+
+![stl_pic_110.png](/img/stl_pic_110.png)
+
+* 为什么是可能？因为copy算法会根据其所接受的 **迭代器的特性**决定来调用 **memmove()**来执行任务，memmove()会先将整个输入区间的内容**复制下来**，就没有被覆盖的危险。
+
+
 
 
 
