@@ -270,8 +270,8 @@ public:
 * 描述：给出一个未排序的整型数组（元素可以重复），找出所有正数1,2,3...开始第一个没出现在该数组中的元素
 
 如：
-* [1,2,0]:输出3
-* [-1,3,4,1]:输出2
+* \[ 1,2,0 \]:输出3
+* \[ -1,3,4,1 \]:输出2
 
 思路： 哈希表，将自身当作一个hash表，遍历这个数组，将每一个数放置到该数对应的下标上去
 如果：
@@ -327,13 +327,14 @@ public:
 
 ## 动态规划
 
-### 题目2：找到最长回文子字符串(LeetCode5:Longest Palindromic Substring)
+### 题目二：找到最长回文子字符串(LeetCode5:Longest Palindromic Substring)
 
 * 描述：给出一个字符串，找出它的最长且为回文结构的子字符串：如：“babad”的最长子字符串且为回文的子串为"bab",或“aba”,而"cbbd"的最长子串为“bb”
 
 思路1：暴力求解：找出所有可能的子字符串头i和尾j，然后判断是否为回文，复杂度O（N^3）
 
 思路2: 动态规划，用一个二维数组arr记录子字符串是否为回文，横坐标纪录字符串开头i(i < s.zise()),纵坐标纪录结尾j(i<=j< s.size());然后二维数组中纪录的是从i到j的子字符串**是否为一个回文结构**。回文结构由以下三种情况
+
     * 由**一个字符**组成的回文字符串
     * 由**两个相同的字符**组成回文字符串
     * i到j字符串为回文字符串，则i+1到j也为回文字符串，且s[i] = s[j];
@@ -341,6 +342,7 @@ public:
 所以根据上述关系arr[i][j]和arr[i+1][j-1]的关系来做状态转换方程构建该二维数组。构建过程的复杂度为O(N^2),然后根据该二维数组找出最长子字符串。空间复杂度也为O(N^2)
 
 思路3(中心扩展，时间复杂度O(N^2),空间复杂度O(1)): 回文结构其实就是以一个点为**中心**，向两边扩展，我们只要找到这**2n-1个中心**（n为字符串的长度）然后两边扩展即可得到回文长度即可。为什么是2n-1个中心，因为中心分为两种：
+
     * 以一个字符为中心
     * 以两个相同的字符为中心
 
@@ -378,6 +380,7 @@ private int expandAroundCenter(String s, int left, int right) {
 为了防止越界，我们还需要在首尾再加上非#号字符
 
 遍历字符串，当遍历到第i字符时，我们需要在遍历过程中纪录回文串可以延伸到**最右端的端点下标max_right**,和以该端点作为结尾的回文字符串的**中心点ct**。还要纪录以该点为中心点的回文串的长度len[i]
+
 * 假设当我们遍历到ct时，匹配后确定了以它为中心的回文串达到的**右端点为前面所有中心的回文串的最右端点**：max_right。
 * 遍历下一个节点j = ct＋1时，len[j] = max_right < j ? min(p[2*ct-j],max_right - j):1;
     - 这个表达式的含义就是当这个下标还在我们前面遍历得到回文串的**最右端点的范围之内**时，根据回文串的映射关系：2*ct-j为j以ct为中心的**映射点**，在ct为中心的回文串范围中，j和2*ct-j的回文串长度应该保持一致，但是出了这个范围，就需要进一步匹配来确定:
@@ -398,6 +401,7 @@ private int expandAroundCenter(String s, int left, int right) {
 处理这三种匹配情况
 1. 碰到字母或'.'时，只要相等就进行下个字符的匹配
 2. 碰到*时分两种情况
+
     * 字符＋‘*’匹配0个字符，1个字符或多个重复字符
     * '.*'匹配0个字符，1个任意字符或多个任意长度的任意类型的字符
 
@@ -438,6 +442,7 @@ bool match(string & str,string & pattern,int str_i,int pat_i){
 用一个二维数组memo[pat_i+1][str_j+1]来记录长度为str_j和长度为pat_i的模版是否匹配
 1. 先进行初始化
 2. 状态转换方程
+
     * 碰到pattern[pat_i]为字母或‘.’时
     * 碰到pattern[pat_i]为为‘*’时
         - pattern[pat_i－1]为普通字符时
@@ -594,6 +599,7 @@ public:
 给两个整数相除，得到除数，但不能使用乘除运算符
 
 要求：
+
 1. 除数和被除数都是32位的整型数
 2. 除数不能为0
 3. 整型数的范围为：**[-2^31,2^31-1]**,当相除后的结果溢出时，返回2^31-1
@@ -640,7 +646,7 @@ public:
 
 ## 其它
 
-### 题目4 ：整型数反转(LeetCode7:Reverse Integer)
+### 题目四 ：整型数反转(LeetCode7:Reverse Integer)
 
 将一个整型数的高位和低位进行反转，负数不变号，如果一个整型数反转后溢出后则返回0:
 
@@ -751,6 +757,173 @@ public:
 };
 {% endhighlight %}
 
+
+### 题目十七：计算容器可以装多少水
+
+描述：给出一个整形数数组，每个数代表一个柱子，柱子的宽度为1，两根柱子之间可以装水，问该数组中的所有数字构成的所有柱子能装多少水？
+
+![rainwatertrap](/img/rainwatertrap.png)
+
+如上图，给出数组[0,1,0,2,1,0,1,3,2,1,2,1],输出：6（装水的容量）
+
+我的解法：笨拙复杂，使用两个栈，一个栈记录高度，一个栈记录该减去的水的容量，其实和标准的使用栈解法的思路类似，只不过思路过于复杂。
+
+* 我的思路和标准解法的思路都是求两根柱子，超出其他矮柱子的高度的部分装的水的容量，这部分的水就只和这两根柱子相关，和其他的柱子没有关系，所以就不会导致重复计算。
+    - 但我的思路是先求两根柱子所能装的水的最大容量，然后减去两根柱子中间被其他柱子所影响的容量，这就比较复杂
+    - 标准解法的思路就比较直接，直接求超出的高度，计算只与这两根柱子相关的水容量
+
+```
+class Solution{
+    public:
+    int trap(vector<int>& height) {
+        if(height.empty()||height.size()==1){
+            return 0;
+        }
+        
+        stack<pair<int, int>> height_stack;
+        stack<int>  minus_stack;
+        int water_tmp = 0,water_sum = 0,water_max = 0;
+        int minus_tmp = 0;
+        
+        for(int i = 0;i< height.size();i++){
+            if(height[i]!=0){
+                if(height_stack.empty()){
+                
+                    height_stack.push(make_pair(height[i], i));
+                    minus_stack.push(0);
+                }else{
+                    while(!height_stack.empty()){
+                        pair<int, int> pair_tmp = height_stack.top();
+                        if(pair_tmp.first > height[i]){
+                            minus_tmp = minus_stack.top();
+                            water_tmp = height[i]*(i-pair_tmp.second-1)-minus_tmp;
+                            water_sum += water_tmp;
+                            minus_tmp +=water_tmp;
+                            minus_stack.pop();
+                            minus_stack.push(minus_tmp);
+                            break;
+                        }
+                        minus_tmp = minus_stack.top();
+                        water_tmp = pair_tmp.first*(i-pair_tmp.second-1)-minus_tmp;//只与目前的两根柱子相关的水容量
+                        water_max = water_tmp + minus_tmp;
+                        water_sum += water_tmp;
+                        height_stack.pop();
+                        minus_stack.pop();
+                        if(!height_stack.empty()){
+                            minus_tmp = minus_stack.top();
+                            minus_stack.pop();
+                            minus_tmp = minus_tmp + water_max + pair_tmp.first;
+                            minus_stack.push(minus_tmp);
+                        }
+                    }
+                    height_stack.push(make_pair(height[i], i));
+                    minus_stack.push(0);
+                }
+            }
+        }
+        
+        return water_sum;
+    }
+};
+
+
+```
+
+* 思路1: 标准的栈解法：
+
+```
+int trap(vector<int>& height)
+{
+    int ans = 0, current = 0;
+    stack<int> st;
+    while (current < height.size()) {
+        while (!st.empty() && height[current] > height[st.top()]) {
+            int top = st.top();
+            st.pop();//当压入一个数时，会把所有小于该数的数全部弹出栈
+            if (st.empty())
+                break;
+            int distance = current - st.top() - 1;
+            int bounded_height = min(height[current], height[st.top()]) - height[top];//求超出的高度部分，必须有三个数参数，两个相邻的数是无法装水的
+            ans += distance * bounded_height;//直接计算超出的高度部分所装的水容量
+        }
+        st.push(current++);
+    }
+    return ans;
+}
+
+```
+
+* 思路2: 计算每一根柱子的顶部空间有多少会被淹没在水里，这样计算每根柱子顶部被淹没在顶部的空间，然后累加起来就是整个水的容量。
+
+    - 解法1:暴力计算，为每根柱子计算左右两边的最高的高度，然后用左右最高高度中的较小者减去该柱子的高度，就是该柱子顶部被淹没的空间
+    - 解法2:动态规划，先记录每根柱子的左右最高高度到两个vector中，这样可以避免重复计算。
+
+```
+//解法1:
+int trap(vector<int>& height)
+{
+    int ans = 0;
+    int size = height.size();
+    for (int i = 1; i < size - 1; i++) {
+        int max_left = 0, max_right = 0;
+        for (int j = i; j >= 0; j--) { //Search the left part for max bar size
+            max_left = max(max_left, height[j]);
+        }//计算左边的最高高度
+        for (int j = i; j < size; j++) { //Search the right part for max bar size
+            max_right = max(max_right, height[j]);
+        }//计算右边的最高高度
+        ans += min(max_left, max_right) - height[i];//累加每根柱子顶部别淹没的空间
+    }
+    return ans;
+}
+
+//解法2:
+
+int trap(vector<int>& height)
+{
+    if(height == null)
+        return 0;
+    int ans = 0;
+    int size = height.size();
+    vector<int> left_max(size), right_max(size);
+    left_max[0] = height[0];
+    for (int i = 1; i < size; i++) {
+        left_max[i] = max(height[i], left_max[i - 1]);
+    }//记录每根柱子左边的最高高度到left_max
+    right_max[size - 1] = height[size - 1];
+    for (int i = size - 2; i >= 0; i--) {
+        right_max[i] = max(height[i], right_max[i + 1]);
+    }//记录每根柱子右边的最高高度到right_max
+    for (int i = 1; i < size - 1; i++) {
+        ans += min(left_max[i], right_max[i]) - height[i];//累加每根柱子顶部被淹没的部分
+    }
+    return ans;
+}
+```
+
+思路三：两点法，从两端找到左边最大的和右边最大的，然后两端向中间移动，遇到短的就可以计算水的容量。https://leetcode.com/problems/trapping-rain-water/solution/
+
+```
+int trap(vector<int>& height)
+{
+    int left = 0, right = height.size() - 1;
+    int ans = 0;
+    int left_max = 0, right_max = 0;
+    while (left < right) {
+        if (height[left] < height[right]) {
+            height[left] >= left_max ? (left_max = height[left]) : ans += (left_max - height[left]);
+            ++left;
+        }
+        else {
+            height[right] >= right_max ? (right_max = height[right]) : ans += (right_max - height[right]);
+            --right;
+        }
+    }
+    return ans;
+}
+
+```
+
 ### 题目六：罗马数转化为整数（Leetcode13:Roman to Integer）
 
 ```
@@ -764,6 +937,7 @@ D             500
 M             1000
 ```
 如上所示，罗马表示数字的字符一一对应，数字规则如下：
+
 * 规则1:较小字符可以放在较大字符前面构成一个数：如IX(10-1 = 9),XLC(100-50-10 = 40)
 * 规则2:将一串罗马字符串根据规则1得到若干数字然后进行相加如：“MCMXCIV”,得到数字： M=1000,CM=900,XC=90,IV=4。最后相加结果为：1000+900+90+4 ＝ 1994
 
