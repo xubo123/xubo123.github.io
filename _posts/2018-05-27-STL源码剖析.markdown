@@ -1609,23 +1609,183 @@ OutputIterator fill_n(OutputIterator first,Size n,const T& value){
 
 * 为什么是可能？因为copy算法会根据其所接受的 **迭代器的特性**决定来调用 **memmove()**来执行任务，memmove()会先将整个输入区间的内容**复制下来**，就没有被覆盖的危险。
 
+![stl_pic_111.png](/img/stl_pic_111.png)
 
+![stl_pic_112.png](/img/stl_pic_112.png)
 
+* 上述这个deque换成vector时，就不会出现错误，因为vector的迭代器就是原生指针
 
+三个版本：泛化版和两个特化版
 
+![stl_pic_113.png](/img/stl_pic_113.png)
 
+四个迭代器版本：
 
+![stl_pic_114.png](/img/stl_pic_114.png)
 
+分别根据迭代器类型的**两个**重载函数版本和赋值函数是否为trivial的**两个**重载函数版本
 
+__copy的两个版本（根据迭代器类型重载）：
+![stl_pic_115.png](/img/stl_pic_115.png)
 
+__copy_t的两个版本（根据赋值函数是否trivial重载）：
 
+![stl_pic_116.png](/img/stl_pic_116.png)
 
+#### 6.4.4 copy_backward
 
+实现方式和copy类似，只不过不同于copy的时，输出区间是先确定区间的前闭后开区间的终点，然后用逆向拷贝的方式进行拷贝，同样该**终点(就正向区间而言)**若落在输入区间内部就可能出现问题
 
+### 6.5 set相关
 
+STL一共提供了四种与set(集合相关)的算法，分别是并集，交集，差集，对称差集。SGI STL虽然提供有hash_set/hash_multiset两种容器，以hashtable为底层机制，其内的元素并未呈现排序状态，所以不可以使用这四种算法。
 
+每一个算法提供两个版本：一个版本默认"<"操作符，另一个版本用户自定义"<"操作符。
 
+例子：
 
+![stl_pic_117.png](/img/stl_pic_117.png)
+
+这些算法都有考虑到重复元素出现的情况，接下来会具体介绍
+
+#### 6.5.1 set_union并集
+
+当有重复元素出现时，结果集中该重复元素重复出现的次数和这两个集合中该元素出现次数的最多次
+
+![stl_pic_118.png](/img/stl_pic_118.png)
+
+#### 6.5.2 set_insersection交集
+交集，遇到重复的元素时，结果集中该重复元素出现的次数和这两个集合中该元素出现次数的最少次数
+
+![stl_pic_119.png](/img/stl_pic_119.png)
+
+#### 6.5.3 set_difference差集
+差集，遇到重复元素时，结果集中只包含集合中多出来的重复元素
+
+![stl_pic_120.png](/img/stl_pic_120.png)
+
+#### 6.5.3 set_symmetric_difference对称差集
+
+![stl_pic_121.png](/img/stl_pic_121.png)
+
+### 6.7 其它算法
+
+#### 6.7.1 简单算法
+* adjacent_find**:找出**第一组满足条件**的相邻元素，这里所谓的条件在版本1是指**“两元素相等”**，版本2中可以自定义相等**二元运算**
+* **count:** 运用equality操作符，返回[first，last)区间内和指定value相等的元素的个数
+* **count_if:**和count的区别在于，提供了预测函数predict,预测为真代表相等，否则不相等
+* **find:**根据equality 操作符，返回［first,last）相等的第一个元素的迭代器，否则返回last
+* **find_if:**和find的区别在于提供预测函数
+* **find_end:**在序列1[first1,last1)中寻找**匹配（完全匹配）**序列2[first2,last2)的最后一个子序列的起始迭代器，如果没有完全匹配的序列则返回last1
+    - 区间迭代器类型是**单向迭代器和双向迭代器**的处理办法不同，双向迭代器利用reverser_iterator会处理的快
+    - 主要是通过**search函数**找到匹配的子序列首次出现的点
+* **find_first_of**:本算法以［first2,last2）区间内任意一个元素为查找目标，查找在[first1,last1)区间内[first2,last2)的**任意元素第一次**出现的点，和find_end不同的是序列**不用完全匹配**
+* **for_each:**将仿函数f,执行在[first,last)区间的每一个元素身上
+* **generate**:将gen()函数的运算结果**赋值到[first,last)**每一个元素上
+* **generate_N**将gen()函数的运算结果赋值到**first开始后面n**个元素上
+* **includes:**判断序列S2是否涵盖序列S1,S1和S2必须要是有序序列
+    - ![stl_pic_122.png](/img/stl_pic_122.png)
+* **max_element**:返回[first,last)区间数值最大的元素，有一个版本可以提供比较函数
+* **merge:**将两个经过排序的集合S1和S2合并起来置于另一段空间result,依然有序。
+* **min_element:**获取区间[first,last)数值最小的元素，有一个版本可以提供比较函数
+* **partition:(不稳定版)**partition会将区间[first,last)中的元素重新排列，所有被一元条件预测函数**pred判断为true**的元素都会被放到区间的**前段**，被判断为**false**的元素放到**区段后面**。这个**不保证元素原始的相对位置**，若要保证，则需要使用**stable_partition**
+* **remove：**将所有**不等于value**的值都拷贝到[first,last)的**前端**，后段不需要变动。这样得到的结果就是[first,last)的前面部分为不等于value的值,返回值为前端不等于value区间的**尾后迭代器**
+    - ![stl_pic_123.png](/img/stl_pic_123.png)
+* **remove_copy:**将[first,last)移除后的结果拷贝到一个新的容器result中区间
+* **remove_if,remove_copy_if:**对应remove,remove_copy,提供预测函数pred
+* **replace:**将[first,last)区间内的所有old_value 都以new_value取代
+    - **replace_copy,replace_if,replace_copy_if**
+* **reverse:**将迭代器区间[first,last)元素倒序
+    - reverse_copy
+* **rotate**:将[first,middle)和［middle,last)内的元素互换，和swap_ranges()类似，但rotate可以互换两个不同长度的区间，swap_ranges()只能互换长度相同的区间
+    - ![stl_pic_124.png](/img/stl_pic_124.png)
+    - rotate根据迭代器类型的不同分为三类来进行处理
+        + 单向迭代器
+        + ![stl_pic_125.png](/img/stl_pic_125.png)
+        + 双向迭代器（三次调用reverse）
+        + ![stl_pic_126.png](/img/stl_pic_126.png)
+        +  随机迭代器
+        +  ![stl_pic_127.png](/img/stl_pic_127.png)
+* **rotate_copy:**
+* **search:**在序列1［first1,last1）所涵盖的区间中，查找[first2,last2)的首次出现的点，有一个可以提供二元运算相等符的版本
+* **search_n:**在序列[first,last)所涵盖的区间中，查找“连续count个符合条件之元素”的子序列
+    - ![stl_pic_128.png](/img/stl_pic_128.png)
+* **swap_ranges**:将［first1,last1)区间内的元素与“从**first2开始个数相同**的”元素互相交换
+    - ![stl_pic_129.png](/img/stl_pic_129.png)
+* **transform:**和for_each类似，只不过将用仿函数op作用于[first,last)中的每一个元素的结果存放到result指定的新序列中。还有一个版本是提供一个**二元运算仿函数**，函数的参数为两个区间[first1,last1]和first2开始的区间内的元素
+    - [stl_pic_130.png](/img/stl_pic_130.png)
+* **unique():**同remove,这里是将重复的元素“移除”
+    - **unique_copy()**
+
+#### 6.7.2 复杂算法
+
+* **lower_bound:**利用**二分查找**的原理，试图在已排序的[first,last)中寻找元素value,如果有和value相等的元素应该，返回一个迭代器指向其中第一个元素，如果没有，则返回一个迭代器指向value应该插入的位置
+* **upper_bound:**利用"二分查找"的原理，求value元素可以插入的最后一个位置
+* **binary_search:****二分查找**，在**已排序**[first,last)区间寻找元素value，有返回true,没有返回false，有一个版本可以提供比较函数
+* **next_permutation():**返回[first,last)区间所标示的序列的下一个排列组合，如[a,b,c]有排列组合｛abc,acb,bac,bca,cab,cba｝这些组合按字符串比较就是从小到大的排序，当[first,last)中的序列为acb时，则下一个排列组合就是bac。该函数有两个版本，有一个版本可以提供比较函数
+* **prev_permutation:**对应next_permutation,返回前一个排列组合
+* **random_shuffle:**这个算法将[first,last)中的元素次序随机重排，random_shuffle会产生一个均匀分布，使得任何一个排列被选中的几率都为(1/N!)
+    - 实现原理就是通过遍历一遍该数组，遍历到一个元素时，随机和序列中的**该元素前面的**一个元素进行交换
+    - [stl_pic_131.png](/img/stl_pic_131.png)
+* **partial_sort/partial_sort_copy:**为了**找出middle-first 个最小的元素**，本算法接收一个middle迭代器器，然后重新排列[first,last),使得序列中middle-first个最小元素按**递增顺序**排列到[first,middle)区间，其余的元素排列到[middle,last),不保证有任何特定顺序。
+    - 原理就是利用**堆排序**，先构建堆，然后逐个找出最小元素,且**只接收RandomIterator**
+    - [stl_pic_132.png](/img/stl_pic_132.png)
+
+#### 6.7.9 排序算法sort()
+
+STL所提供的各式各样的算法中，sort()是最复杂最庞大的一个，这个算法接收两个RandomIterator,然后将区间内的所有元素由小到大重新排列，第二个版本则允许用户指定一个仿函数作为排序标准
+
+* 关系型容器都拥有自动排序的功能，所以不需要sort算法
+* stack，queue,priority_queue有特定的出入口，所以不能使用sort算法
+* vector,deque和list：前两个迭代器为RandomIterator适合使用sort算法，list迭代器属于forward_iterator，不适合sort算法，对于list和slist使用排序算法，应该使用自己提供的成员函数sort()
+
+* sort排序思路：
+    - STL的sort算法，数据量大时采用QuickSort,分段递归排序
+    - 一旦分段后的数据量小于某个门槛，为避免QuickSort的递归调用带来过大的额外负担就改用InsertionSort。
+    - 如果递归层次过深，还会改用Heap Sort
+
+* 快排的三点中值枢纽选取法
+* 阈值thredhold
+    - 何时改用插入排序来替代快排（当元素个数小于16时）
+    - 何时改用堆排序：当递归次数超过限制的次数（该次数随着元素的个数变化）
+
+[stl_pic_133.png](/img/stl_pic_133.png)
+[stl_pic_134.png](/img/stl_pic_134.png)
+
+#### 6.7.10 equal_range(应用于有序区间)
+
+找到和value相等的区间，先用二分法找到一个元素和value相等，再确定lower_bound和upper_bound，在LeetCode有看到这一题：搜索一个数字在一个递增数组（允许数字重复）中出现的范围
+
+#### 6.7.11 inplace_merge(就地合并)
+
+如果两个连接在一起的序列[first,middle)和[middle,last)都已经排好序，那么inplace_merge可以将这两个序列合并为一整个排好序的序列［first,last）
+
+inplace_merge有两个版本，有一个版本可以提供自定义的比较操作函数
+
+inplace_merge在有额外的内存辅助，效率会好许多，但在没缓冲区或缓冲区不足的情况下也可以运作：
+
+[stl_pic_135.png](/img/stl_pic_135.png)
+
+有缓冲区下的实现方式：
+
+[stl_pic_136.png](/img/stl_pic_136.png)
+
+#### 6.7.12 nth_element
+
+快排中所经历的过程，重排[first,last),确定第n大（或小）的元素在第n个位置上，且前面的元素全部小于该元素，后面的元素全部大于该元素。但不保证这些元素之间的顺序。
+
+* 先使用三分中值切割法，确定一个值的正确位置
+* 若该位置小于n，则对右部分进行三分中值切割重排
+* 若该位置大于n，则对左部分进行三分中值切割重排
+* 不断缩小切割重排的范围即可。
+
+[stl_pic_137.png](/img/stl_pic_137.png)
+
+#### 6.7.13 mergesort归并排序
+
+分而治之的归并排序：
+
+[stl_pic_138.png](/img/stl_pic_138.png)
 
 
 

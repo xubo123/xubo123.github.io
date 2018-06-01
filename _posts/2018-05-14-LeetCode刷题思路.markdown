@@ -346,7 +346,7 @@ public:
     * 以一个字符为中心
     * 以两个相同的字符为中心
 
-```
+{% highlight c++ %}
 public String longestPalindrome(String s) {
     int start = 0, end = 0;
     for (int i = 0; i < s.length(); i++) {
@@ -369,7 +369,7 @@ private int expandAroundCenter(String s, int left, int right) {
     }
     return R - L - 1;
 }
-```
+{% endhighlight %}
 
 思路4（Manacher's Algorithm,O(N)）:
 
@@ -713,6 +713,7 @@ public:
 [解法链接](https://leetcode.com/problems/container-with-most-water/solution/)
 
 代码参考：
+
 {% highlight c++%}
 
 class Solution {
@@ -772,7 +773,7 @@ public:
     - 但我的思路是先求两根柱子所能装的水的最大容量，然后减去两根柱子中间被其他柱子所影响的容量，这就比较复杂
     - 标准解法的思路就比较直接，直接求超出的高度，计算只与这两根柱子相关的水容量
 
-```
+{% highlight c++ %}
 class Solution{
     public:
     int trap(vector<int>& height) {
@@ -827,11 +828,12 @@ class Solution{
 };
 
 
-```
+{% endhighlight %}
 
 * 思路1: 标准的栈解法：
 
-```
+{% highlight c++ %}
+
 int trap(vector<int>& height)
 {
     int ans = 0, current = 0;
@@ -851,14 +853,14 @@ int trap(vector<int>& height)
     return ans;
 }
 
-```
+{% endhighlight %}
 
 * 思路2: 计算每一根柱子的顶部空间有多少会被淹没在水里，这样计算每根柱子顶部被淹没在顶部的空间，然后累加起来就是整个水的容量。
 
     - 解法1:暴力计算，为每根柱子计算左右两边的最高的高度，然后用左右最高高度中的较小者减去该柱子的高度，就是该柱子顶部被淹没的空间
     - 解法2:动态规划，先记录每根柱子的左右最高高度到两个vector中，这样可以避免重复计算。
 
-```
+{% highlight c++ %}
 //解法1:
 int trap(vector<int>& height)
 {
@@ -899,11 +901,11 @@ int trap(vector<int>& height)
     }
     return ans;
 }
-```
+{% endhighlight %}
 
 思路三：两点法，从两端找到左边最大的和右边最大的，然后两端向中间移动，遇到短的就可以计算水的容量。https://leetcode.com/problems/trapping-rain-water/solution/
 
-```
+{% highlight c++ %}
 int trap(vector<int>& height)
 {
     int left = 0, right = height.size() - 1;
@@ -922,7 +924,7 @@ int trap(vector<int>& height)
     return ans;
 }
 
-```
+{% endhighlight %}
 
 ### 题目六：罗马数转化为整数（Leetcode13:Roman to Integer）
 
@@ -1135,7 +1137,8 @@ Output: 1->1->2->3->4->4->5->6
 PS:注意当创建来的链表为空时的处理
 
 代码：
-```
+
+{% highlight c++ %}
 /**
  * Definition for singly-linked list.
  * struct ListNode {
@@ -1182,7 +1185,7 @@ public:
         return new_list;
     }
 };
-```
+{% endhighlight %}
 
 思路2:暴力求解，逐个将两条链表合并成一条，直到所有链表都被合并
 
