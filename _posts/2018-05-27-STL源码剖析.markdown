@@ -1713,7 +1713,7 @@ STL一共提供了四种与set(集合相关)的算法，分别是并集，交集
 * **swap_ranges**:将［first1,last1)区间内的元素与“从**first2开始个数相同**的”元素互相交换
     - ![stl_pic_129.png](/img/stl_pic_129.png)
 * **transform:**和for_each类似，只不过将用仿函数op作用于[first,last)中的每一个元素的结果存放到result指定的新序列中。还有一个版本是提供一个**二元运算仿函数**，函数的参数为两个区间[first1,last1]和first2开始的区间内的元素
-    - [stl_pic_130.png](/img/stl_pic_130.png)
+    - ![stl_pic_130.png](/img/stl_pic_130.png)
 * **unique():**同remove,这里是将重复的元素“移除”
     - **unique_copy()**
 
@@ -1726,10 +1726,10 @@ STL一共提供了四种与set(集合相关)的算法，分别是并集，交集
 * **prev_permutation:**对应next_permutation,返回前一个排列组合
 * **random_shuffle:**这个算法将[first,last)中的元素次序随机重排，random_shuffle会产生一个均匀分布，使得任何一个排列被选中的几率都为(1/N!)
     - 实现原理就是通过遍历一遍该数组，遍历到一个元素时，随机和序列中的**该元素前面的**一个元素进行交换
-    - [stl_pic_131.png](/img/stl_pic_131.png)
+    - ![stl_pic_131.png](/img/stl_pic_131.png)
 * **partial_sort/partial_sort_copy:**为了**找出middle-first 个最小的元素**，本算法接收一个middle迭代器器，然后重新排列[first,last),使得序列中middle-first个最小元素按**递增顺序**排列到[first,middle)区间，其余的元素排列到[middle,last),不保证有任何特定顺序。
     - 原理就是利用**堆排序**，先构建堆，然后逐个找出最小元素,且**只接收RandomIterator**
-    - [stl_pic_132.png](/img/stl_pic_132.png)
+    - ![stl_pic_132.png](/img/stl_pic_132.png)
 
 #### 6.7.9 排序算法sort()
 
@@ -1749,8 +1749,8 @@ STL所提供的各式各样的算法中，sort()是最复杂最庞大的一个�
     - 何时改用插入排序来替代快排（当元素个数小于16时）
     - 何时改用堆排序：当递归次数超过限制的次数（该次数随着元素的个数变化）
 
-[stl_pic_133.png](/img/stl_pic_133.png)
-[stl_pic_134.png](/img/stl_pic_134.png)
+![stl_pic_133.png](/img/stl_pic_133.png)
+![stl_pic_134.png](/img/stl_pic_134.png)
 
 #### 6.7.10 equal_range(应用于有序区间)
 
@@ -1764,11 +1764,11 @@ inplace_merge有两个版本，有一个版本可以提供自定义的比较操�
 
 inplace_merge在有额外的内存辅助，效率会好许多，但在没缓冲区或缓冲区不足的情况下也可以运作：
 
-[stl_pic_135.png](/img/stl_pic_135.png)
+![stl_pic_135.png](/img/stl_pic_135.png)
 
 有缓冲区下的实现方式：
 
-[stl_pic_136.png](/img/stl_pic_136.png)
+![stl_pic_136.png](/img/stl_pic_136.png)
 
 #### 6.7.12 nth_element
 
@@ -1779,13 +1779,13 @@ inplace_merge在有额外的内存辅助，效率会好许多，但在没缓冲�
 * 若该位置大于n，则对左部分进行三分中值切割重排
 * 不断缩小切割重排的范围即可。
 
-[stl_pic_137.png](/img/stl_pic_137.png)
+![stl_pic_137.png](/img/stl_pic_137.png)
 
 #### 6.7.13 mergesort归并排序
 
 分而治之的归并排序：
 
-[stl_pic_138.png](/img/stl_pic_138.png)
+![stl_pic_138.png](/img/stl_pic_138.png)
 
 
 
