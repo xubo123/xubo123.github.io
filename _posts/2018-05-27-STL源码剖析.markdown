@@ -1788,5 +1788,311 @@ inplace_merge在有额外的内存辅助，效率会好许多，但在没缓冲�
 ![stl_pic_138.png](/img/stl_pic_138.png)
 
 
+## 7.仿函数
+ 仿函数是C++中的函数对象，一种具有函数特质的对象。
+
+ 仿函数的作用主要用于满足STL对抽象性的要求，就实现观点而言，仿函数其实就是一个“行为类似函数”的对象，其类别定义中必须自定义function call运算符。
+
+ ```
+#include <functional>
+#include <iostream>
+using namespace std;
+
+//两种调用方式
+int main(){
+    greater<int> ig;
+    cout << boolalpha <<ig(4,6);//false
+    cout << greater<int>()(6,4);//true，实例化一个临时对象后调用函数
+}
+
+ ```
+
+下图表示STL仿函数与STL算法的关系：
+![stl_pic_139.png](/img/stl_pic_139.png)
+
+
+* STL以操作数划分，可分为一元和二元仿函数，若以功能划分，可分为算术运算，关系运算和逻辑运算三大类。
+* STL 仿函数应该有能力被函数配接器修饰，彼此像积木一样串接，为了拥有配接能力，每一个仿函数必须定义自己的相应型别，就像迭代器的五个型别来适应STL规范。
+* 仿函数的相应型别主要用于表现参数型别和传回值型别。为了方便起见,<stl_function.h>定义了两个classes分别代表一元仿函数和二元仿函数
+
+#### 7.2.1 unary_function 一元函数
+
+unary_function用来呈现一元函数的参数型别和返回值类型：
+
+```
+template <class Arg,class Result>
+struct unary_function{
+    typedef Arg argument_type;//参数类型
+    typedef Result result_type;//返回值类型
+};
+
+```
+
+![stl_pic_140.png](/img/stl_pic_140.png)
+
+#### 7.2.2 binary_function二元函数
+
+binary_function用来呈现二元函数的第一个参数型别，第二参数型别以及返回值型别
+
+```
+template<class Arg1,class Arg2,class Result>
+struct binary_function {
+    typedef Arg1 first_argument_type;
+    typedef Arg2 second_argumrnt_type;
+    typedef Result result_type;
+}
+```
+
+![stl_pic_141.png](/img/stl_pic_141.png)
+
+
+### 7.3 算术类仿函数
+
+STL内建的“算术类仿函数”，支持加法，减法，乘法，除法，模数（余数）和否定运算，除了否定运算是一元运算，其余都是二元运算。
+
+* plus<T>
+* minus<T>
+* multiplies<T>
+* divides<T>
+* modulus<T>
+* negate<T>
+
+![stl_pic_142.png](/img/stl_pic_142.png)
+
+#### 证同元素
+
+所谓op的证同元素，意思是数值A与该元素做op运算，会得到A自己。加法的证同元素为0，因为任何元素加上0仍然为自己，乘法的证同元素为1.｀
+
+### 7.4 关系运算类仿函数
+均为二元运算符
+
+* 等于：equal_to<T>
+* 不等于：not_equal_to<T>
+* 大于：greater<T>
+* 大于或等于：greater_equal<T>
+* 小于：less<T>
+* 小于或等于:less_equal<T>
+
+### 7.5 逻辑运算类仿函数
+
+逻辑类仿函数包括And,or,not三种运算，其中And,or为二元运算，Not为一元运算
+
+* And:logical_and<T>
+* Or:logical_or<T>
+* Not:logical_not<T>
+
+### 7.6 证同，选择，投射
+
+这部分的仿函数都只是将其参数原封不动地传回，其中某些仿函数对传回的参数有刻意的选择，或者刻意的忽略。设计这些仿函数的目的在于是想划分一层，实现间接性。
+
+![stl_pic_143.png](/img/stl_pic_143.png)
+
+
+## 8.配接器adapters
+
+配接器在STL组件的灵活组合运用的功能上，扮演着轴承、转换器的角色。配接器用于讲一个对象的借口转换成另一个对象的接口。
+
+配接器就是一种具有接口标准的对象。可以用其他的对象来实现。配接的过程则要么通过类的实例化实现，要么通过辅助函数实现。
+
+### 8.1 配接器分类
+
+* 仿函数配接器
+* 容器配接器
+* 迭代器配接器
+
+#### 8.1.1 容器配接器
+
+STL提供的两个容器queue和stack其实都只不过是一种配接器，他们修饰deque的接口而成就出另一种容器风貌。
+
+#### 8.1.2 迭代器配接器
+
+STL提供的迭代器适配器：包括insert adapter,reverse iterator,iostream iterator。
+
+##### Insert Iterators
+
+插入迭代器，将一般迭代器的赋值操作转变为插入操作，包括
+
+* 尾端插入迭代器:back_insert_iterator
+* 头端插入迭代器：front_insert_iterator
+* 任意位置插入迭代器：insert_iterator
+
+![stl_pic_144.png](/img/stl_pic_144.png)
+
+##### Reverse Iterators
+可以将一般迭代器的行进方向逆转，使原本operator++的操作变成后退操作，使原本operator--的操作变成前进操作，这种迭代器特别适合用于“从尾端开始进行的算法上”。
+
+##### IOstream Iterators
+
+可以将迭代器绑定在某个iostream对象身上，对该迭代器进行操作就是执行对应的输入输出操作
+
+![stl_pic_145.png](/img/stl_pic_145.png)
+
+#### 8.1.3 应用于仿函数
+
+仿函数配接器是所有配接器中数量最庞大的一个族群，其配接灵活度也是前两者所不能及，它可以不断嵌套配接，这些配接操作包括**系结（bind）,否定(negate),组合（compose）以及对一般函数或成员函数的修饰**，使其成为一个仿函数。
+
+仿函数配接器可以实现各种各样的表达式：
+
+f(g(elem));
+
+其中f,g都是数学函数，那么可以写成：
+
+compose1(f(x),g(y));//组合操作，生成一个**组合操作配接器的实例化对象**
+
+例如，我们希望对容器内的每一个元素v进行(v+2)*3的操作，我们可以令f(x)=x*3,g(y)=y+2;
+
+```
+compose1(bind2nd(multiplies<int>(),3),bind2nd(plus<int>(),2));
+```
+
+这个算式会改变参数的值，所以不能用于for_each算法，因为该算法是非质变算法，但可以用于transform来输出到新的容器中去。
+
+##### 兼容一般函数指针和成员函数指针
+
+为了让一般函数指针和成员函数也能使用配接器适配，所以我们需要通过**修饰**将一般函数和成员函数修饰为对应的**仿函数对象**:
+
+修饰一般函数的配接器：ptr_fun(func)
+修饰成员函数的配接器：mem_fun_ptr(&class::func)
+
+![stl_pic_146.png](/img/stl_pic_146.png)
+
+### 8.2 container adapters
+
+stack,deque的源码不做重复的介绍，之前有介绍
+
+### 8.3 iterator adapters
+
+#### 8.3.1 insert iterator
+
+将对迭代器做赋值操作的时候，就在insert iterator中被转为对该容器的迭代器做插入操作：
+
+* 也就是说在insert iterators的operator=操作符中调用底层的**push_front,push_back或insert操作。**
+* 至于其它的迭代器惯常行为如operator++,operator--，operator*都被**关闭功能**
+* 也就是说对insert iterator的**前进,后退，取值，成员取用等操作都是没有意义**的，甚至是不被允许的
+
+##### back_insert_iterator
+
+![stl_pic_147.png](/img/stl_pic_147.png)
+
+##### front_insert_iterator
+
+不适用于不支持push_front的容器迭代器，如vector
+
+![stl_pic_148.png](/img/stl_pic_148.png)
+
+##### insert iterator
+
+和前两个迭代器类似，只不过转调用的操作为insert函数
+
+#### 8.3.2 reverse iterators
+
+每一个容器都有rbegin(),rend()操作，且每一个容器都有reverse_iterator的型别定义。所以其实调用rbegin和rend操作中，适配器reverse_iterator也已经被实例化了：
+
+```
+typedef __list(deque)_iterator iterator;
+typedef reverse_iterator<iterator> reverse_iterator;
+
+reverse_iterator rbegin(){
+    return reverse_iterator(finish);
+}
+reverse_iterator rend(){
+    return reverse_iterator(start);
+}
+
+```
+
+![stl_pic_149.png](/img/stl_pic_149.png)
+
+* 前进变成后退，涉及到++,+,+=
+* 后退变成前进，涉及到--,-,-=
+* 提领操作 *,去迭代器前面的值。
+
+![stl_pic_150.png](/img/stl_pic_150.png)
+![stl_pic_151.png](/img/stl_pic_151.png)
+
+#### 8.3.4 stream iterators
+
+将一个流迭代器绑定到一个stream（数据流）对象身上。若绑定到istream则拥有输入能力，绑定到一个ostream身上则拥有数处2能力。
+
+##### istream_iterator
+
+输入能力的实现主要就是通过**调用operator＋＋**实现，该操作符会**转调用stream的operator>>(输入)**。流迭代器是一个InputIterator所以**不具有operator--操作**。
+
+![stl_pic_152.png](/img/stl_pic_152.png)
+
+只要客户端定义一个istream iterator并绑定到某个istream上，程序会阻塞到read()函数，等待输入。因此，我们只有在必要的时候定义所需要的istream iterator
+
+拷贝函数copy,和流迭代器istream_iterator合作的例子：
+
+![stl_pic_153.png](/img/stl_pic_153.png)
+
+##### ostream_iterator
+
+ostream_iterator在内部维护一个ostream member,客户端对这个迭代器所做的 **operator=**就会转调用ostream对象的 **operator<<**操作。这个迭代器是一个OutputIteartor
+
+![stl_pic_154.png](/img/stl_pic_154.png)
+
+ostream_iterator和copy函数的合作使用：
+
+![stl_pic_155.png](/img/stl_pic_155.png)
+
+### 8.4 function adapter仿函数迭代器
+
+* 仿函数是一种将operate()重载的class template
+* 迭代器是一种将指针相关的操作++,*等操作符重载的class template
+* 应用在容器和迭代器身上的配接器都是一种class template
+* 应用在仿函数身上的配接器，通过传入仿函数对象，然后“事先”对一个**函数的参数的绑定（多个参数转换为一个参数），执行结果的否定，多方函数的组合**,
+
+#### 8.4.1 对返回值进行逻辑否定：not1,not2
+
+* 构造传入一个预测仿函数对象
+* 调用时，根据调用传入的参数来调用构造时传入的仿函数并执行逻辑非!操作
+* 辅助函数对该适配器进行实例化操作
+
+![stl_pic_156.png](/img/stl_pic_156.png)
+
+#### 8.4.2 对参数进行事先绑定：bind1st,bind2nd
+
+二元仿函数转化成一元仿函数配接器
+
+* 构造时传入一个**二元仿函数**，和**事先配置好的参数**，bind1st事先配置好第一个参数，bind2nd事先配置好第二个参数。
+* 调用该一元仿函数配接器时，再**传入还没有配置另一个参数**，然后根据这两个参数调用二元仿函数
+* 辅助函数实现该一元仿函数配接器的实例化
+
+![stl_pic_157.png](/img/stl_pic_157.png)
+
+#### 8.4.3 用于函数合成:compose1,compose2
+
+* 构造时传入要合成的两个仿函数对象（合成二元仿函数compose2需要传入三个仿函数）
+* 调用的时候，根据一定规则组合这些函数的调用组合方式。
+* 辅助函数实例化该配接器
+
+![stl_pic_158.png](/img/stl_pic_158.png)
+
+#### 8.4.3 用于函数指针修饰为仿函数辅助函数：ptr_fun
+
+* 传入指针作为模版参数,模版对指针进行参数分析，得到函数的相关信息：返回值，参数
+* 继承自unary_function一元仿函数或二元仿函数binary_function，通过膜拜分析的信息，实例化这两个父类对象
+* 调用该仿函数时，就是调用该指针指向的函数
+* ptr_fun为辅助函数，用于实例化配接器pointer_to_unary_function或pointer_to_binary_function
+
+![stl_pic_159.png](/img/stl_pic_159.png)
+
+#### 8.4.4 用于成员函数修饰为仿函数的辅助函数：mem_fun,mem_fun_ref
+
+可以完成泛型到多态之间的重要接合步骤：
+
+* 也是通过构造函数中传入成员函数的指针，然后模版参数推导得到返回结果信息S，类信息T,成员函数偏移（指针）信息pf
+* 根据这些信息调用每个元素类的成员函数
+* 其中还有区别在于
+    - 成员函数是否有一个参数
+    - 通过引用，还是通过指针调用
+    - 是否为const成员函数
+
+![stl_pic_160.png](/img/stl_pic_160.png)
+![stl_pic_161.png](/img/stl_pic_161.png)
+![stl_pic_162.png](/img/stl_pic_162.png)
+
+
 
 
