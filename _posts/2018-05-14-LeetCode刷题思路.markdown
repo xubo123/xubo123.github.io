@@ -11,9 +11,42 @@ tags:
 ---
 # LeetCode刷题思路
 
+**LeetCode**
+
+主要tag：数组、字符串、链表、树、栈、队列、动态规划、哈希表、二分查找
+
+|  #   |  Title  |        Solution        | Difficulty | Tag  |
+| :--: | :-----: | :--------------------: | :--------: | :--: |
+|  1   |  两个排序数组的中位数 | [O](#LeetCode4) |    Hard    | 数组 \| 数据搜索|
+|  5   | 最长回文子串 | [O](#LeetCode5) |    Medium    | 字符串 \| 动态规划 |
+|  7   | 反转整数 | [O](#LeetCode7) |    Easy    | 数学 \| 其他 |
+|  8   | 字符串转整数 | [O](#LeetCode8) |    Medium    | 字符串 |
+|  10 | 字符串常规匹配 | [O](#LeetCode10) |    Hard    | 字符串 \| 递归 \|动态规划 |
+|  11 | 盛最多水的容器 | [O](#LeetCode11) |    Medium    | 数组 |
+|  13 | 罗马数字转整数 | [O](#LeetCode13) |    Easy    | 字符串 |
+|  15 | 三数之和 | [O](#LeetCode15) |    Medium    | 数组 \| 两点法 |
+|  17 | 电话号码的字母组合 | [O](#LeetCode17) |    Medium    | 字符串 \| 递归|
+|  20 | 有效的括号 | [O](#LeetCode20) |    Easy    | 字符串 \| 回溯法 |
+|  21 | 合并两个有序链表 | [O](#LeetCode21) |    Easy    | 链表 \| 优先级队列 \ 归并法 |
+|  29   | 两数相除 | [O](#LeetCode29) |    Medium    | 数学 \| 位运算|
+|  33   | 搜索旋转排序数组 | [O](#LeetCode33) |    Medium    | 数组 \| 二分查找 |
+|  34   | 搜索范围 | [O](#LeetCode34) |    Medium    | 数组 \| 二分查找 |
+| 35 | 搜索插入位置 | [O](#LeetCode35) | Easy | 数组 \| 二分查找 |
+| 36 | 有效的数读独 | [O](#LeetCode36) | Medium | 数组 \| 哈希表 |
+| 38 | 报数 | [O](#LeetCode38) | Easy | 数学 |
+| 41 | 寻找第一个未出现的正数 | [O](#LeetCode41) | Medium | 数组 \| 哈希表 |
+| 42 | 容器可以装多少水 | [O](#LeetCode42) | Medium | 数组 \| 动态规划 \|两点法|
+| 44 | 字符串匹配2 | [O](#LeetCode44) |    Hard    | 字符串 \| 递归 \|动态规划 |
+| 48 | 旋转图形 | [O](#LeetCode48) | Medium | 数组 \| 递归 |
+| 49 | 字符串分类 | [O](#LeetCode49) | Medium | 数组 \| 哈希表，索引|
+| 50 | 求幂Pow(x, n) | [O](#LeetCode50) | Medium | 数学 \| 位运算|
+| 53 | 最大子序和 | [O](#LeetCode53) | Easy | 数组 \| 动态规划 |
+
 ## 数据搜索及查找(哈希表，二分法)
 
-### 题目1:如何找到两个排序数组的中位数？(LeetCode4:Median of Two Sorted Arrays)
+### LeetCode4
+
+#### 如何找到两个排序数组的中位数？(LeetCode4:Median of Two Sorted Arrays)
 
 * 描述：给定两个排序的数组a，b长度分别为m，n找出这两个数组的中位数，时间复杂度为O(log(m+n))
 
@@ -25,7 +58,9 @@ tags:
 
 要是m,n其中有一个长度小于k/2,则取长度和k/2的较小值来进行切割。
 
-## 题目十二：在翻转数组中查找指定数据（LeetCode33: Search in Rotated Sorted Array）
+### LeetCode33
+
+####在翻转数组中查找指定数据（LeetCode33: Search in Rotated Sorted Array）
 
 翻转数组在剑指offer中有相关描述，这题也是剑指offer面试题11的很好的延伸，思路利用二分法来进行数据搜索，需要注意的是，如何根据nums[mid]和查找目标target的大小关系进行范围的缩小，分为两种情况：
 
@@ -84,7 +119,9 @@ public:
 
 {% endhighlight %}
 
-### 题目十三：搜索一个数字在一个递增数组（允许数字重复）中出现的范围
+### LeetCode34
+
+#### 搜索一个数字在一个递增数组（允许数字重复）中出现的范围(LeetCode34:Search for a Range)
 
 返回出现的下标范围［start ，end］，如果不存在返回［-1,-1］
 
@@ -145,7 +182,9 @@ public:
 {% endhighlight %}
 
 
-### 题目十四： 判断数独二维数组是否合法
+### LeetCode36
+
+#### 判断数独二维数组是否合法(LeetCode36: Valid Sudoku)
 
 * 为什么要把这一题放到数据搜索及查找这一分类？因为判断一个数独数组是否合法可以分解为在纵向列，横向行，及每个子box中寻找重复的数字（1-9），只要有重复的数字就不合法，没有就合法。
 * 而寻找重复的数字在剑指offer中有对应的题目：**面试题3，哈希表的思路**
@@ -265,7 +304,9 @@ public:
 
 {% endhighlight %}
 
-### 题目十六：找到第一个未出现的正数（Leetcode41: First Missing Positive）
+### LeetCode41
+
+#### 找到第一个未出现的正数（LeetCode41: First Missing Positive）
 
 * 描述：给出一个未排序的整型数组（元素可以重复），找出所有正数1,2,3...开始第一个没出现在该数组中的元素
 
@@ -327,7 +368,9 @@ public:
 
 ## 动态规划
 
-### 题目二：找到最长回文子字符串(LeetCode5:Longest Palindromic Substring)
+### LeetCode5
+
+#### 找到最长回文子字符串(LeetCode5:Longest Palindromic Substring)
 
 * 描述：给出一个字符串，找出它的最长且为回文结构的子字符串：如：“babad”的最长子字符串且为回文的子串为"bab",或“aba”,而"cbbd"的最长子串为“bb”
 
@@ -388,7 +431,10 @@ private int expandAroundCenter(String s, int left, int right) {
     - 遍历过程中需要纪录:回文串**最右端点及中心点**，最长回文字符串的**中心点及长度**。遍历一次更新一次
     - 代码参考：https://www.cnblogs.com/grandyang/p/4475985.html
 
-### 题目三：字符串匹配“.*”(Leetcode10:Regular Expression Matching)
+### LeetCode10
+
+#### 字符串匹配“.*”(LeetCode10:Regular Expression Matching)
+
 题目链接： https://leetcode.com/problems/regular-expression-matching/description/
 描述：给定一个字符串匹配模式pattern，输入一个字符串判断是否与该pattern匹配。
 
@@ -498,7 +544,159 @@ bool match_dp(string & str,string & pattern){
 
 {% endhighlight %}
 
-### 题目十五：计数后用字符串表达（Leetcode38:Count and Say）
+### LeetCode44
+
+#### 字符串匹配："?*"(LeetCode44:Wildcard Matching)
+
+描述：给定一个字符串匹配模式pattern，输入一个字符串判断是否与该pattern匹配。
+
+'?'可以代替任意一个字符，'*'可以代替任意长度任意类型的字符串
+
+方法有两种：
+* 回溯法
+* 动态规划二维数组
+    - 优化版本：只用一维数组记录数据
+
+{% highlight c++ %}
+
+class Solution {
+    
+    public:
+    //回溯法，比较耗时，递归调用
+    bool isMatch(string s, string p) {
+        int s_end = s.size();
+        int p_end = p.size();
+        return ismatch(s,p,0,0,s_end,p_end);
+    }
+    
+    bool ismatch(string &s,string &p,int i,int j, int s_end,int p_end){
+        bool result = false;
+        if(i == s_end){
+            if(j == p_end)
+                return true;
+            else if(p[j] == '*')
+                return ismatch(s,p,i,j+1,s_end,p_end);
+            else
+                return false;
+        }
+        
+        if(i>s_end || j>p_end)
+            return false;
+        if(j < p_end){
+            if(p[j] == '?')
+                result = ismatch(s,p,i+1,j+1,s_end,p_end);//匹配一个，均前进一步
+            else if(p[j] == '*')
+                result = ismatch(s,p,i,j+1,s_end,p_end)||ismatch(s,p,i+1,j+1,s_end,p_end)||ismatch(s,p,i+1,j,s_end,p_end);//'*'分别匹配0个，1个和多个
+            else if(s[i] == p[j])
+                result = ismatch(s,p,i+1,j+1,s_end,p_end);//匹配一个，均前进一步
+            else
+                result = false;
+        }
+        
+        return result;
+        
+        
+        
+    }
+    //二维数组进行动态规划
+        bool isMatch_dp2(string s, string p) {
+            const int s_end = s.size(),p_end = p.size();
+            int** record = new int*[p_end+1];//二维数组纪录结果数据
+            
+            //初始化基础数据
+            for(int i=0;i<=p_end;i++){
+                record[i] = new int[s_end+1];
+            }
+            
+            for(int i=0;i<=p_end;i++){
+                for(int j = 0;j<=s_end;j++){
+                    record[i][j] = 0;
+                }
+            }
+            
+            record[0][0] = true;
+            if(p_end>0){
+                //初始化基础数据
+                if(p[0] == '*'){
+                    for(int i = 0;i<=s_end;i++)
+                        record[1][i] = 1;
+                }else if(p[0] == '?'||p[0] == s[0]){
+                    record[1][1] = 1;
+                }
+                
+                for(int i = 0;i<p_end;i++)
+                    if(p[i] == '*')
+                        record[i+1][0] = record[i][0];
+                
+                //开始动态规划
+                for(int i=2;i<=p_end;i++){
+                    for(int j = 0;j<=s_end;j++){
+                        if(p[i-1] == '*'){
+                            for(int k = 0;k<=j;k++){
+                                if(record[i-1][k])
+                                    record[i][j] = 1;
+                            }
+                        }
+                        else if(p[i-1] == '?'){
+                            record[i][j] = record[i-1][j-1];
+                        }else if(p[i-1] == s[j-1]){
+                            record[i][j] = record[i-1][j-1];
+                        }
+                    }
+                }
+            }
+            
+            if(record[p_end][s_end]){
+                return true;
+            }
+            else
+                return false;
+        }
+    //一维数组进行动态规划
+    bool isMatch_dp1(string s, string p) {
+        int s_end = s.size(),p_end = p.size();
+        int *record = new int[s_end+1];//用一维数组纪录结果
+        record[0] = 1;
+        if(s_end >0){//初始化基础数据
+            for(int i = 1;i<s_end+1;i++){
+                record[i] = 0;
+            }
+        }
+        
+        if(p_end>0){
+            for(int i = 1;i<=p_end;i++){
+                for(int j = s_end;j>=0;j--){//倒序进行确认
+                    if(p[i-1] == '*'){
+                        for(int k = 0;k<=j;k++){
+                            if(record[k] == 1){
+                                record[j] = 1;
+                                break;
+                            }
+                        }
+                    }
+                    else if(p[i-1] == '?'){
+                        record[j] = record[j-1];
+                    }else if(p[i-1] == s[j-1]){
+                        record[j] = record[j-1];
+                    }else{
+                        record[j] = 0;
+                    }
+                }
+            }
+        }
+        
+        return record[s_end];
+    }
+
+
+};
+
+
+{% endhighlight %} 
+
+### LeetCode38
+
+#### 计数后用字符串表达（LeetCode38:Count and Say）
 
 有一个字符串的序列，下一项为上一项的计数表达，从"1"开始计数
 
@@ -528,11 +726,11 @@ public:
         if(n==1){
             return record;
         }
-        for(int k = 1;k<n;k++){
-            for(int i=0;i<record.size();i++){
+        for(int k = 1;k < n;k++){
+            for(int i=0;i < record.size();i++){
                 num = record[i];
                 count = 0;
-                while(i<record.size()&&record[i] == num){
+                while(i < record.size()&&record[i] == num){
                     count++;
                     i++;
                 }
@@ -546,23 +744,53 @@ public:
         return record;
     }
 };
+
 {% endhighlight %}
 
 
+### LeetCode53
 
+#### 最大子序列和（LeetCode53:Maximum Subarray）
+
+给一个数组，求出该数组中和最大的子序列。
+
+思路：循环遍历数组，记录每一个数结尾的最大子序列和，当该**和小于0时重新从0开始求和**。遍历结束后获取最大的子序列和。
+
+{% highlight c++ %}
+class Solution {
+public:
+    int maxSubArray(vector<int>& nums) {
+        if(nums.empty())
+            return 0;
+        int sum = 0,sum_max = nums[0];
+        for(int i = 0;i<nums.size();i++){
+            sum += nums[i];
+            if(sum > sum_max)//寻找最大的子序列和
+                sum_max = sum;
+            if(sum < 0)//小于0时从0开始重新求和
+                sum = 0;
+        }
+        
+        return sum_max;
+    }
+};
+
+{% endhighlight %}
 
 
 ## 递归
 
-### 题目八：手机号码的字符串组合（LeetCode17:Letter Combinations of a Phone Numbe）
+### LeetCode17
+
+#### 手机号码的字符串组合（LeetCode17:Letter Combinations of a Phone Numbe）
 按手机输入法的格式，输入一串数字，得到所有可能的字符串:
 ![leetcode_phonenum.png](/img/leetcode_phonenum.png)
 
 简单的递归思路：需要注意的点就是传入参数时，传入引用可以节省大部分运行时间
 
 代码:
-{% highlight c++ %}
 
+{% highlight c++ %}
 class Solution {
 public:
     map<int,string> num_map = { {2,"abc"},{3,"def"},{4,"ghi"},{5,"jkl"},{6,"mno"},{7,"pqrs"},{8,"tuv"},{9,"wxyz"} };//关联容器的初始化
@@ -592,9 +820,111 @@ public:
 
 {% endhighlight%}
 
+### LeetCode 46
+
+#### 排列组合（LeetCode 46: Permutations）
+
+给出一个整形数组，输出该整形数组的排列组合：
+
+思路：将首元素和所有的元素（包括它自己）进行交换后，递归求解剩余元素的排列组合，具体思路可以见剑指offer的面试题38，字符串的排列组合。
+
+{% highlight c++%}
+
+class Solution {
+public:
+    vector<vector<int>> permute(vector<int>& nums) {
+         vector<vector<int>> result;
+        if(nums.empty()){
+            return result;
+        }
+        int start = 0,end = nums.size()-1;
+        permute_x(start,end,nums,result);
+        return result;
+        
+    }
+    
+    void permute_x(int start,int end,vector<int>& vec,vector<vector<int>>& result ){
+        if(start == end){
+            result.push_back(vec);
+            return;
+        }
+        
+        for(int i = start;i<=end;i++){
+            vector<int> vec1 = vec;
+            int tmp = vec1[start];//首元素和其余元素交换后
+            vec1[start] = vec1[i];
+            vec1[i] = tmp;
+            permute_x(start+1,end,vec1,result);//递归进行排列组合
+        }
+        
+        return;
+        
+    }
+    
+};
+
+{% endhighlight %}
+
+### LeetCode48
+
+#### n x n矩阵的旋转（LeetCode48: Rotate Image）
+
+给一个nxn矩阵matrix，输出它向右旋转90度的新的nxn矩阵：
+
+```
+如input matrix = 
+[
+  [1,2,3],
+  [4,5,6],
+  [7,8,9]
+]
+输出：
+[
+  [7,4,1],
+  [8,5,2],
+  [9,6,3]
+]
+```
+
+思路：将外围的部分进行旋转后，剩下的部分依然是一个(n-2)x(n-2)的矩阵，递归求解
+
+{% highlight c++ %}
+class Solution {
+public:
+    void rotate(vector<vector<int>>& matrix) {
+        if(matrix.empty()){
+            return;
+        }
+        int size = matrix[0].size();
+        rotate_x(matrix,size,size);
+    }
+    
+    void rotate_x(vector<vector<int>>& matrix,int n,int size){
+        if(n==0||n==1){
+            return;
+        }
+        int start = (size-n)/2;
+        int end = start+n-1;
+        //将外围进行旋转操作
+        for(int i = 0;i<n-1;i++){
+            int tmp = matrix[start][start+i];
+            matrix[start][start+i] = matrix[end-i][start];
+            matrix[end-i][start] = matrix[end][end-i];
+            matrix[end][end-i] = matrix[start+i][end];
+            matrix[start+i][end] = tmp;
+        }
+        //递归求解更小规模的矩阵
+        rotate_x(matrix,n-2,size);
+    }
+};
+
+{% endhighlight %}
+
 ## 位运算
 
-### 题目十一：两个整型数做除法，不使用乘除运算符
+### LeetCode29
+
+#### 两个整型数做除法，不使用乘除运算符(LeetCode29:Divide Two Integers)
 
 给两个整数相除，得到除数，但不能使用乘除运算符
 
@@ -644,9 +974,120 @@ public:
 };
 {% endhighlight %}
 
+## LeetCode50
+
+### 求幂myPow()(LeetCode50: Pow(x, n))
+
+题目要求：实现pow(x,n)
+
+* -100.0 < x < 100.0
+* n 是一个32位有符号整数。
+
+```
+Input: 2.00000, -2
+Output: 0.25000
+Explanation: 2-2 = 1/22 = 1/4 = 0.25
+```
+
+思路：扫描n的二进制上的为1的bit,来计算幂的结果，例如：n为139，则其二进制为10001011，那么x^n == x^(1+2+8+128) == (x^1) * (x^2) * (x^8) * (x^128)
+
+PS:需要考虑的特殊情况
+
+1. x取值为0时，0的正数次幂是1，而负数次幂是没有意义的；判断x是否等于0不能直接用“==”。
+2. 对于n取值INT_MIN时，**-n并不是INT_MAX**，这时需要格外小心。
+3. 尽量使用**移位运算来代替除法运算**，加快算法执行的速度。
+
+判断double变量是否为零是否正确的题目。判断double变量是否为零 **不能像我们直观想象的那样double d;if( d == 0 );**这种做法是极其错误的,因为double是双精度的，他表示本身就是有精度误差的，所以这样判断零不正确。应正确步骤应该是先 **定义一个精度范围**，当double小于该精度范围时就可以判定double变量是否为0了。代码如下：
+
+```
+#define MIN_VALUE 1e-8
+#define IS_DOUBLE_ZERO(d)  (abs(d) < MIN_VALUE)
+```
+
+代码：
+
+{%highlight c++%}
+class Solution {
+public:
+    double myPow(double x, int n) {
+        if(n<0){
+            if(n == INT_MIN)
+                return 1/(myPow(x,INT_MAX)*x);
+            else
+                return 1/myPow(x,-n);
+        }
+        double ans = 1;
+        if(n>0){
+            while(n!=0){
+                if(n&1) //只在bit为1的位乘如到结果中去
+                    ans *= x;
+                x *=x;
+                n >>=1;
+            }
+        }
+        
+        return ans;
+    }
+};
+
+{% endhighlight %}
+## 数据分类
+
+### LeetCode49
+
+#### 字符串分类(LeetCode49：Group Anagrams)
+
+给一个数组，将所有字符相同的字符串分到一个数组里面去
+
+```
+Input: ["eat", "tea", "tan", "ate", "nat", "bat"],
+Output:
+[
+  ["ate","eat","tea"],
+  ["nat","tan"],
+  ["bat"]
+]
+```
+
+思路：利用unordered_map(**哈希表**)**索引**的性质，先将所有字符串**进行排序**，排序后一样的字符串放到一个数组。
+
+{% highlight c++ %}
+class Solution {
+public:
+    vector<vector<string>> groupAnagrams(vector<string>& strs) {
+        vector<vector<string>> result;
+        if(strs.empty()){
+            return result;
+        }
+        unordered_map<string,vector<string>> diff;
+        for(int i= 0 ;i<strs.size();i++){
+            string sorted_str = strs[i];
+            sort(sorted_str.begin(),sorted_str.end());//对字符串进行排序
+            if(diff.count(sorted_str)){//查看当前map中有没有出现过该索引
+                diff[sorted_str].push_back(strs[i]);
+            }else{
+                vector<string> new_vec;
+                new_vec.push_back(strs[i]);
+                diff.insert(make_pair(sorted_str,new_vec));
+            }
+        }
+        
+        for(auto pair : diff){//map遍历的方法
+            result.push_back(pair.second);
+        }
+        
+        return result;
+    }
+};
+{% endhighlight %}
+
+
+
 ## 其它
 
-### 题目四 ：整型数反转(LeetCode7:Reverse Integer)
+### LeetCode7
+
+#### 整型数反转(LeetCode7:Reverse Integer)
 
 将一个整型数的高位和低位进行反转，负数不变号，如果一个整型数反转后溢出后则返回0:
 
@@ -700,7 +1141,9 @@ public:
 };
 {% endhighlight %}
 
-### 题目五：装水最多的容器(LeetCode11:Container with most water)
+### LeetCode11
+
+#### 装水最多的容器(LeetCode11:Container with most water)
 
 描述：给定一个整型数组｛a1,a2,a3...an｝;这些点代表在坐标轴上的n个点，（i，ai）。根据这些点画出垂直于x轴的直线，这些直线中任取两条直线构成一个容器，求两条直线使得构成的容器可以装水的体积最大。
 
@@ -759,7 +1202,9 @@ public:
 {% endhighlight %}
 
 
-### 题目十七：计算容器可以装多少水
+### LeetCode42
+
+#### 计算容器可以装多少水(LeetCode42:Trapping Rain Water)
 
 描述：给出一个整形数数组，每个数代表一个柱子，柱子的宽度为1，两根柱子之间可以装水，问该数组中的所有数字构成的所有柱子能装多少水？
 
@@ -926,7 +1371,9 @@ int trap(vector<int>& height)
 
 {% endhighlight %}
 
-### 题目六：罗马数转化为整数（Leetcode13:Roman to Integer）
+### LeetCode13
+
+#### 罗马数转化为整数（LeetCode13:Roman to Integer）
 
 ```
 Symbol       Value
@@ -1018,14 +1465,16 @@ int romanToInt(string s)
 }
 {% endhighlight %}
 
-### 题目七：三个数相加为0(LeetCode15:3Sum)
+### LeetCode15
+
+#### 三个数相加为0(LeetCode15:3Sum)
 
 给定一个数组，从中找到所有可能的三元组，使得这三个加起来的总和为0。
 
 思路1（暴力求解）:首先将数组进行排序，然后**三次循环**遍历确定找到使和为0的三元组。
     - 优化：最后一次循环可以用**关联容器**来确定，将所有的数据放到一个关联容器multiset,在前两次循环后，三元组中的第三个数也就可以确定下来，我们可以直接判断该数是否在multiset存在
 
-**代码见Leetcode15.3Sum**
+**代码见LeetCode15.3Sum**
 
 
 思路2（O(N^2)）:同样需要先将数组进行排序，然后确定三元组中的**第一个元素**（一次循环），然后我们可以知道后两个元素的和，然后利用**两点法（见剑指offer面试题57:和为s的数字）**,来确定后两个元素的值。
@@ -1053,7 +1502,9 @@ public List<List<Integer>> threeSum(int[] num) {
 }
 {% endhighlight %}
 
-### 题目九:产生所有可能的有效括号组合（Generate Parentheses）
+### LeetCode22
+
+#### 产生所有可能的有效括号组合（LeetCode22:Generate Parentheses）
 
 题目描述：给定一个数字n，给出n个括号所有有效的组合方式。如给定3，则输出结果是：
 
@@ -1117,7 +1568,9 @@ public:
 
 {% endhighlight %}
 
-## 题目十：合并k个排序链表（Leetcode23: Merge k Sorted Lists）
+### LeetCode23
+
+#### 合并k个排序链表（LeetCode23: Merge k Sorted Lists）
 
 将k个排序链表合并成一个排序链表：
 
