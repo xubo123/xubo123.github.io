@@ -66,13 +66,13 @@ tags:
     - [条款44:将与参数无关的代码抽离templates](#条款44将与参数无关的代码抽离templates)
     - [条款45:运用成员函数模版接受所有兼容类型](#条款45运用成员函数模版接受所有兼容类型)
     - [条款46:需要类型转换时请为模版定义非成员函数](#条款46需要类型转换时请为模版定义非成员函数)
-    - [条款47：请使用traits classed表现类型信息](#条款47请使用traits classed表现类型信息)
+    - [条款47：请使用traits classed表现类型信息](#条款47请使用traits-classed表现类型信息)
     - [条款48:认识template元编程](#条款48认识template元编程)
 * [8.定制new与delete](#8定制new与delete)
     - [条款49：了解new-handler的行为](#条款49了解new-handler的行为)
     - [条款50：了解new和delete的合理替换时机](#条款50了解new和delete的合理替换时机)
     - [条款51：编写new和delete时需固守常规](#条款51编写new和delete时需固守常规)
-    - [条款52：写了placement new也要写placement delete](#条款52写了placement new也要写placement-delete)
+    - [条款52：写了placement new也要写placement delete](#条款52写了placement-new也要写placement-delete)
 
 
 ## 1.让自己习惯C++
