@@ -177,6 +177,7 @@ sudo mount -t aufs -o dirs=./container-layer:./image-layer4:./image-layer3:./ima
 /proc目录介绍：该文件系统由内核提供，它其实不是一个真正的文件系统，只包含了系统运行时的信息（比如系统内存，mount设备信息，一些硬件配置等），它只**存在于内存**中，而不占用外存空间，它以文件系统的方式为**访问内核数据的操作提供接口**
 
 ／proc下比较重要的部分：
+
     * /proc/N:PID为N的进程相关信息
     * /proc/N/cmdline：进程启动的命令
     * /proc/N/cwd:链接到进程当前工作目录
