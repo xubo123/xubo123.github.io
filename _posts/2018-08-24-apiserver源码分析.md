@@ -192,6 +192,10 @@ func (c *Container)dispatch(httpWriter http.ResponseWriter, httpRequest *http.Re
 }
 ```
 
+## 源码总结
+
+APIServer启动完成路由，主要使用go-restful包，构建route->webservice-> container的网络路由模块，启动服务器kubeApiServer, extensionApiServer, aggreatorServer三个服务器，每个服务器内部都构造一个接口提供器，接口提供器内部包含满足restful规范的路由信息的结构，然后将这些接口API路由信息都注册到server.Handler.GoRestfulContainer的container中去提供路由服务。
+
 ## API Server启动
 
 同样，从cmd/kube-apiserver/apiserver.go的main()函数入口：
