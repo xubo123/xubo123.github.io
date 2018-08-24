@@ -626,3 +626,5 @@ func (a *APIInstaller) Install() ([]metav1.APIResource, *restful.WebService, []e
   return apiResources, ws, errors//返回得到的api资源和webservice
 }
 ```
+
+在路由信息安装的过程当中registerResourceHandlers将路由信息按动作进行分类，添加action,设置对应handler的路由route然后添加到webservice中去。这部分的代码非常复杂：／vendor/k8s.io/apiserver/pkg/endpoints/installer.go 170行处
