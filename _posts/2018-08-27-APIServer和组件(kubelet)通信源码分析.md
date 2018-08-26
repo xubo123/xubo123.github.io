@@ -442,7 +442,9 @@ func newCacheWatcher(resourceVersion uint64, chanSize int, initEvents []*watchCa
 * 首先调用Reflector.ListerWatcher.List方法获得所有数据
 * 然后通过版本信息过滤掉不满足版本要求的数据
 * 最后调用Reflector.ListerWatcher.Watch进行操作
-*  ListerWatcher实际是一个包含List和Watch的接口，这里的接口实际上是newCacherListerWatcher函数创建的cacherListerWatcher结构
+* ListerWatcher实际是一个包含List和Watch的接口，这里的接口实际上是newCacherListerWatcher函数创建的cacherListerWatcher结构
+
+
 ```go
 //简化的版本
 func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
@@ -515,7 +517,7 @@ func Create(c storagebackend.Config) (storage.Interface, DestroyFunc, error) {
 * 该etcdWatcher对象主要实现了Watch接口
 * 该etcdWatcher对象主要的数据成员是etcdincoming channel和outgoing channel
 
-```
+```go
 func (h *etcdHelper) WatchList(ctx context.Context, key string, resourceVersion string, pred storage.SelectionPredicate) (watch.Interface, error) {
     if ctx == nil {
         glog.Errorf("Context is nil")
