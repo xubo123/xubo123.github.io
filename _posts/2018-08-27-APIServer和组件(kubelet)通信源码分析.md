@@ -522,6 +522,7 @@ etcd3的一些介绍可以参考该[Blog](https://skyao.gitbooks.io/learning-etc
 * etcd3的键值由一个三元组构成：(major, sub, type)Major是持有key的存储修订版本。Sub区分同一个修订版本的不同key。Type是用于特别值，以b+树键值对的方式存储数据
 * etcd3的键值API被定义为gRPC服务
     - 键值对KeyValue是键值API可以操作的最小单元。每个键值对有一些字段
+    
     ```
     message KeyValue {
     bytes key = 1;//字节数组形式的key
@@ -691,7 +692,7 @@ func (wc *watchChan) run() {
 * 主要是调用了/github.com/coreos/etcd/clientv3/watch.go进入到etcd3组件内部源码，然后结合etcd3的Watch服务来发起Watch请求
 * wc.watcher.client.Watch(wc.ctx, wc.key, opts...)
 
-```
+```go
 func (wc *watchChan) startWatching(watchClosedCh chan struct{}) {
     if wc.initialRev == 0 {
         if err := wc.sync(); err != nil {
