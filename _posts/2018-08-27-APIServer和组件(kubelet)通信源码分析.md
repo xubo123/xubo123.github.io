@@ -1002,3 +1002,417 @@ func (w *watchCache) processEvent(event watch.Event, resourceVersion uint64, upd
     return updateFunc(elem)
 }
 ```
+
+
+## kubelet向APIServer实现ListAndWatch同步
+
+从NewMainKubelet开始分析，由于我们该章只分析kubelet的ListAndWatch的实现，该函数中有一段代码为,用于创建PodSourceConfig结构，在创建过程中实现POD配置信息的ListAndWatch同步和对POD更新：
+
+```go
+    if kubeDeps.PodConfig == nil {
+        var err error
+        kubeDeps.PodConfig, err = makePodSourceConfig(kubeCfg, kubeDeps, nodeName, bootstrapCheckpointPath)
+        if err != nil {
+            return nil, err
+        }
+    }
+```
+
+
+makePodSourceConfig的实现：
+
+* 创建了一个用于监听POD配置信息更新的监听管道updatechannel
+* 监听该管道传过来的POD配置信息POD信息后，调用Merge()函数首先将kubetype.Set类型的PODUpdate中的POD和本地的POD信息进行比较，区分出ADD,DELETE,UPDATE,RESTORE...不同的类型，然后在调用具体的Handler进行处理
+* NewSourceApiserver实现对APIServer的ListAndWatch,当APIServer有事件发生然后通过watchHandler函数，调用Handler函数来将PodUpdate设置为kubetype.Set后发送到update管道，进行处理
+
+```go
+func makePodSourceConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, kubeDeps *Dependencies, nodeName types.NodeName, bootstrapCheckpointPath string) (*config.PodConfig, error) {
+    manifestURLHeader := make(http.Header)
+    if len(kubeCfg.StaticPodURLHeader) > 0 {
+        for k, v := range kubeCfg.StaticPodURLHeader {
+            for i := range v {
+                manifestURLHeader.Add(k, v[i])
+            }
+        }
+    }
+
+    // source of all configuration
+    cfg := config.NewPodConfig(config.PodConfigNotificationIncremental, kubeDeps.Recorder)
+
+    // define file config source
+    if kubeCfg.StaticPodPath != "" {
+        glog.Infof("Adding pod path: %v", kubeCfg.StaticPodPath)
+        config.NewSourceFile(kubeCfg.StaticPodPath, nodeName, kubeCfg.FileCheckFrequency.Duration, cfg.Channel(kubetypes.FileSource))
+    }
+
+    // define url config source
+    if kubeCfg.StaticPodURL != "" {
+        glog.Infof("Adding pod url %q with HTTP header %v", kubeCfg.StaticPodURL, manifestURLHeader)
+        config.NewSourceURL(kubeCfg.StaticPodURL, manifestURLHeader, nodeName, kubeCfg.HTTPCheckFrequency.Duration, cfg.Channel(kubetypes.HTTPSource))
+    }
+
+    // Restore from the checkpoint path
+    // NOTE: This MUST happen before creating the apiserver source
+    // below, or the checkpoint would override the source of truth.
+
+    var updatechannel chan<- interface{}
+    if bootstrapCheckpointPath != "" {
+        glog.Infof("Adding checkpoint path: %v", bootstrapCheckpointPath)
+        updatechannel = cfg.Channel(kubetypes.ApiserverSource)
+        err := cfg.Restore(bootstrapCheckpointPath, updatechannel)
+        if err != nil {
+            return nil, err
+        }
+    }
+
+    if kubeDeps.KubeClient != nil {
+        glog.Infof("Watching apiserver")
+        if updatechannel == nil {
+            updatechannel = cfg.Channel(kubetypes.ApiserverSource)//创建一个update管道，用于监听来自APIServer的发生事件
+        }
+        config.NewSourceApiserver(kubeDeps.KubeClient, nodeName, updatechannel)//启动到APIServer的ListAndWatch, 进行数据同步，将APIServer发生的事件包装为PodUpdate,且设置为kubetype.SET类型
+    }
+    return cfg, nil
+}
+
+```
+
+### 事件Event管道的监听和处理handler
+
+首先看updateChannel管道的创建和监听实现步骤：Channel()
+
+* 创建一个管道
+* 监听该管道传过来的事件
+* 有事件发生时，调用Merge（）进行统一的事件处理入口函数
+
+```go
+
+func (c *PodConfig) Channel(source string) chan<- interface{} {
+    c.sourcesLock.Lock()
+    defer c.sourcesLock.Unlock()
+    c.sources.Insert(source)//将该管道对应的字符串添加到PodConfig结构中的sources中保存
+    return c.mux.Channel(source) //创建管道并实现监听
+}
+
+func (m *Mux) Channel(source string) chan interface{} {
+    if len(source) == 0 {
+        panic("Channel given an empty name")
+    }
+    m.sourceLock.Lock()
+    defer m.sourceLock.Unlock()
+    channel, exists := m.sources[source]
+    if exists {
+        return channel
+    }
+    newChannel := make(chan interface{})//创建一个管道
+    m.sources[source] = newChannel
+    go wait.Until(func() { m.listen(source, newChannel) }, 0, wait.NeverStop)//启动监听例程
+    return newChannel
+}
+
+func (m *Mux) listen(source string, listenChannel <-chan interface{}) {
+    for update := range listenChannel {//监听管道中的事件
+        m.merger.Merge(source, update)//当有事件发生时，则调用Merge函数
+    }
+}
+```
+
+Merge函数主要是为了实现一个统一的标准事件入口：
+
+* 在Merge内部实现对事件类型的解析和分类，分类主要是将发生事件的POD信息和本地POD源中的信息进行比较，然后判断是哪一个类型的事件：ADD,UPDATE,DELETE,RESTORE..封装为kupetype.SET/ADD/UPDATE..不同类型的PodUpdate数据
+* 然后再封装好的PodUpdate类型事件发送到s.updates进行对应的操作：
+
+```go
+func (s *podStorage) Merge(source string, change interface{}) error {
+    s.updateLock.Lock()
+    defer s.updateLock.Unlock()
+
+    seenBefore := s.sourcesSeen.Has(source)
+    adds, updates, deletes, removes, reconciles, restores := s.merge(source, change)//内部对kubetype.SET事件进行解析分类，主要是将change的POD信息和本地对应的POD源信息进行比较后判断是什么类型的事件
+    firstSet := !seenBefore && s.sourcesSeen.Has(source)
+
+    // deliver update notifications
+    switch s.mode {//然后判断事件的类型做相应的操作
+    case PodConfigNotificationIncremental:
+        if len(removes.Pods) > 0 {
+            s.updates <- *removes
+        }
+        if len(adds.Pods) > 0 {
+            s.updates <- *adds
+        }
+        if len(updates.Pods) > 0 {//将update类型的事件发送到updates管道再进行处理
+            s.updates <- *updates
+        }
+        if len(deletes.Pods) > 0 {
+            s.updates <- *deletes
+        }
+        if len(restores.Pods) > 0 {
+            s.updates <- *restores
+        }
+        if firstSet && len(adds.Pods) == 0 && len(updates.Pods) == 0 && len(deletes.Pods) == 0 {
+            // Send an empty update when first seeing the source and there are
+            // no ADD or UPDATE or DELETE pods from the source. This signals kubelet that
+            // the source is ready.
+            s.updates <- *adds
+        }
+        // Only add reconcile support here, because kubelet doesn't support Snapshot update now.
+        if len(reconciles.Pods) > 0 {
+            s.updates <- *reconciles
+        }
+
+    case PodConfigNotificationSnapshotAndUpdates:
+        if len(removes.Pods) > 0 || len(adds.Pods) > 0 || firstSet {
+            s.updates <- kubetypes.PodUpdate{Pods: s.MergedState().([]*v1.Pod), Op: kubetypes.SET, Source: source}
+        }
+        if len(updates.Pods) > 0 {
+            s.updates <- *updates
+        }
+        if len(deletes.Pods) > 0 {
+            s.updates <- *deletes
+        }
+
+    case PodConfigNotificationSnapshot:
+        if len(updates.Pods) > 0 || len(deletes.Pods) > 0 || len(adds.Pods) > 0 || len(removes.Pods) > 0 || firstSet {
+            s.updates <- kubetypes.PodUpdate{Pods: s.MergedState().([]*v1.Pod), Op: kubetypes.SET, Source: source}
+        }
+
+    case PodConfigNotificationUnknown:
+        fallthrough
+    default:
+        panic(fmt.Sprintf("unsupported PodConfigNotificationMode: %#v", s.mode))
+    }
+
+    return nil
+}
+```
+
+merge函数实现对统一kubetype.Set事件进行解析并分类，主要是通过和本地的POD源信息中进行比较来分类：
+
+* 首先定义一个updatePodsFunc用于和POD源oldPods中的信息进行比较
+    - 首先进行事件过滤filter
+    - 然后判断该POD的UID是否已经存在，不存在则添加到addPods结构中
+    - 若已经存在，进一步调用checkAndUpdatePod判断是Update还是DELETE或Reconcile类型,添加到updatePods，reconcilePods，deletePods这些Pods的分类及和中去
+* 然后将这些Pods信息的集合封装为PodUpdate类型的数据返回。
+
+```go
+func (s *podStorage) merge(source string, change interface{}) (adds, updates, deletes, removes, reconciles, restores *kubetypes.PodUpdate) {
+    s.podLock.Lock()
+    defer s.podLock.Unlock()
+
+    addPods := []*v1.Pod{}
+    updatePods := []*v1.Pod{}
+    deletePods := []*v1.Pod{}
+    removePods := []*v1.Pod{}
+    reconcilePods := []*v1.Pod{}
+    restorePods := []*v1.Pod{}
+
+    pods := s.pods[source]
+    if pods == nil {
+        pods = make(map[types.UID]*v1.Pod)
+    }
+
+    // updatePodFunc is the local function which updates the pod cache *oldPods* with new pods *newPods*.
+    // After updated, new pod will be stored in the pod cache *pods*.
+    // Notice that *pods* and *oldPods* could be the same cache.
+    updatePodsFunc := func(newPods []*v1.Pod, oldPods, pods map[types.UID]*v1.Pod) {
+        filtered := filterInvalidPods(newPods, source, s.recorder)
+        for _, ref := range filtered {
+            // Annotate the pod with the source before any comparison.
+            if ref.Annotations == nil {
+                ref.Annotations = make(map[string]string)
+            }
+            ref.Annotations[kubetypes.ConfigSourceAnnotationKey] = source
+            if existing, found := oldPods[ref.UID]; found {//首先判断该pod信息是否在本地的POD源中是否已经存在，如果不存在则判断为ADD,如果存在，则进一步调用checkAndUpdatePod判断是Update还是DELETE或Reconcile类型
+                pods[ref.UID] = existing
+                needUpdate, needReconcile, needGracefulDelete := checkAndUpdatePod(existing, ref)//checkAndUpdatePod近一步判断是什么类型的事件
+                if needUpdate {//判定为Update事件，添加到updatePods集合中
+                    updatePods = append(updatePods, existing)
+                } else if needReconcile {//判定为reconcile
+                    reconcilePods = append(reconcilePods, existing)
+                } else if needGracefulDelete {//判断为删除类型事件
+                    deletePods = append(deletePods, existing)
+                }
+                continue
+            }
+            recordFirstSeenTime(ref)
+            pods[ref.UID] = ref
+            addPods = append(addPods, ref)//判断为ADD类型事件
+        }
+    }
+
+    update := change.(kubetypes.PodUpdate)
+    switch update.Op {
+    case kubetypes.ADD, kubetypes.UPDATE, kubetypes.DELETE:
+        if update.Op == kubetypes.ADD {
+            glog.V(4).Infof("Adding new pods from source %s : %v", source, update.Pods)
+        } else if update.Op == kubetypes.DELETE {
+            glog.V(4).Infof("Graceful deleting pods from source %s : %v", source, update.Pods)
+        } else {
+            glog.V(4).Infof("Updating pods from source %s : %v", source, update.Pods)
+        }
+        updatePodsFunc(update.Pods, pods, pods)
+
+    case kubetypes.REMOVE:
+        glog.V(4).Infof("Removing pods from source %s : %v", source, update.Pods)
+        for _, value := range update.Pods {
+            if existing, found := pods[value.UID]; found {
+                // this is a delete
+                delete(pods, value.UID)
+                removePods = append(removePods, existing)
+                continue
+            }
+            // this is a no-op
+        }
+
+    case kubetypes.SET://如果为SET类型事件
+        glog.V(4).Infof("Setting pods for source %s", source)
+        s.markSourceSet(source)
+        // Clear the old map entries by just creating a new map
+        oldPods := pods
+        pods = make(map[types.UID]*v1.Pod)
+        updatePodsFunc(update.Pods, oldPods, pods)//调用updatePodsFunc来将事件进行分类然后添加到对应的PODS
+        for uid, existing := range oldPods {
+            if _, found := pods[uid]; !found {
+                // this is a delete
+                removePods = append(removePods, existing)
+            }
+        }
+    case kubetypes.RESTORE:
+        glog.V(4).Infof("Restoring pods for source %s", source)
+        for _, value := range update.Pods {
+            restorePods = append(restorePods, value)
+        }
+
+    default:
+        glog.Warningf("Received invalid update type: %v", update)
+
+    }
+
+    s.pods[source] = pods
+    //然后将配置好的addPods，updatePods,deletePods...配置为PodUpdate类型
+    adds = &kubetypes.PodUpdate{Op: kubetypes.ADD, Pods: copyPods(addPods), Source: source}
+    updates = &kubetypes.PodUpdate{Op: kubetypes.UPDATE, Pods: copyPods(updatePods), Source: source}
+    deletes = &kubetypes.PodUpdate{Op: kubetypes.DELETE, Pods: copyPods(deletePods), Source: source}
+    removes = &kubetypes.PodUpdate{Op: kubetypes.REMOVE, Pods: copyPods(removePods), Source: source}
+    reconciles = &kubetypes.PodUpdate{Op: kubetypes.RECONCILE, Pods: copyPods(reconcilePods), Source: source}
+    restores = &kubetypes.PodUpdate{Op: kubetypes.RESTORE, Pods: copyPods(restorePods), Source: source}
+
+    return adds, updates, deletes, removes, reconciles, restores//将配置好的不同类型的PodUpdate对象返回
+}
+```
+
+checkAndUpdatePod比较新的Pod结构中的信息和旧的Pod信息，根据Pod.DeletionTimestamp字段是否存在判断是Update还是Delete
+
+```go
+func checkAndUpdatePod(existing, ref *v1.Pod) (needUpdate, needReconcile, needGracefulDelete bool) {
+
+    // 1. this is a reconcile
+    // TODO: it would be better to update the whole object and only preserve certain things
+    //       like the source annotation or the UID (to ensure safety)
+    if !podsDifferSemantically(existing, ref) {
+        // this is not an update
+        // Only check reconcile when it is not an update, because if the pod is going to
+        // be updated, an extra reconcile is unnecessary
+        if !reflect.DeepEqual(existing.Status, ref.Status) {
+            // Pod with changed pod status needs reconcile, because kubelet should
+            // be the source of truth of pod status.
+            existing.Status = ref.Status
+            needReconcile = true
+        }
+        return
+    }
+
+    // Overwrite the first-seen time with the existing one. This is our own
+    // internal annotation, there is no need to update.
+    ref.Annotations[kubetypes.ConfigFirstSeenAnnotationKey] = existing.Annotations[kubetypes.ConfigFirstSeenAnnotationKey]
+
+    existing.Spec = ref.Spec
+    existing.Labels = ref.Labels
+    existing.DeletionTimestamp = ref.DeletionTimestamp//该DeletionTimestamp字段存在说明需要删除该Pod
+    existing.DeletionGracePeriodSeconds = ref.DeletionGracePeriodSeconds
+    existing.Status = ref.Status
+    updateAnnotations(existing, ref)
+
+    // 2. this is an graceful delete
+    if ref.DeletionTimestamp != nil {
+        needGracefulDelete = true
+    } else {
+        // 3. this is an update
+        needUpdate = true
+    }
+
+    return
+}
+```
+
+### NewSourceApiserver发起Watch请求和事件监听
+
+* 首先创建一个**ListerWatcher**结构实现了**List()和Watch()**函数用于向APIServer发送List请求和Watch请求
+* 发起对APIServer的ListWatcher的数据同步拉取请求
+    - 首先创建一个send函数用于向updates管道进行事件发送，因为从APIServer传送过来的事件很简单
+
+    ```
+    Event{
+        Type: watch.Added, //事件类型
+        Object: object//资源类型，这里就是Pod结构
+    }
+    ```
+    - 所以我们send 函数主要是接受发生信息变动的Pod信息封装为**kubetype.Set类型的PodUpdate**事件然后进行统一处理发送update管道再进行进一步的解析和事件分类
+    - 然后创建一个Reflector,该Reflector携带了之前实现过List()和Watch()方法的ListerWatcher，并且创建一个UndeltaStore结构实现Storage的相关接口
+    
+    ```go
+    UndeltaStore{
+        store:cache{
+            cachestorage:thread_safe_store{
+                items:map[string] interface{}
+                indexer:indexer
+                indices:indices
+            }
+            keyfunc:keyfunc
+        }
+        Pushfunc:send//这就是之前创建的向update管道推送事件的函数
+    }
+    ```
+    - 所以Reflector.Run()中调用的ListAndWatch()函数中的两个关键步骤：
+        + listerwatcher.Watch()发送请求，是向APIServer发送请求，不同于APIServer向ETCD3发送请求
+        + watchHandler()中解析了数据类型然后调用的store.Update()/Add()函数实则是UndeltaStore.Update()/Add()函数，这些函数除了完成添加和数据更新，还会调用UndeltaStore.Pushfunc(send)函数将Pod结构封装为kubetype.Set类型的PodUpdate结构发送到update管道进行进一步的处理
+
+```go
+// NewSourceApiserver creates a config source that watches and pulls from the apiserver.
+func NewSourceApiserver(c clientset.Interface, nodeName types.NodeName, updates chan<- interface{}) {
+    lw := cache.NewListWatchFromClient(c.CoreV1().RESTClient(), "pods", metav1.NamespaceAll, fields.OneTermEqualSelector(api.PodHostField, string(nodeName)))
+    newSourceApiserverFromLW(lw, updates)
+}
+
+// newSourceApiserverFromLW holds creates a config source that watches and pulls from the apiserver.
+func newSourceApiserverFromLW(lw cache.ListerWatcher, updates chan<- interface{}) {
+    send := func(objs []interface{}) {
+        var pods []*v1.Pod
+        for _, o := range objs {
+            pods = append(pods, o.(*v1.Pod))
+        }
+        updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.ApiserverSource}
+    }
+    r := cache.NewReflector(lw, &v1.Pod{}, cache.NewUndeltaStore(send, cache.MetaNamespaceKeyFunc), 0)//创建Reflector结构，主要的部分在于ListerWatcher和UndeltaStore两个结构
+    go r.Run(wait.NeverStop)//实现对APIServer的ListAndWatch的数据拉取同步和监听
+}
+
+func (u *UndeltaStore) Add(obj interface{}) error {
+    if err := u.Store.Add(obj); err != nil {
+        return err
+    }
+    u.PushFunc(u.Store.List())//调用send函数发送事件
+    return nil
+}
+
+func (u *UndeltaStore) Update(obj interface{}) error {
+    if err := u.Store.Update(obj); err != nil {//完成对thead_safe_map的数据更新
+        return err
+    }
+    u.PushFunc(u.Store.List())
+    return nil
+}
+```
+
+
+
