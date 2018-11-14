@@ -370,7 +370,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 * Download下载返回rootFS信息，匹配rootFS和原先下载的configJSON中的diffIDs（layer-DiffID）进行**匹配**，匹配失败报错，否则镜像层下载成功
 
 
-```
+```go
 func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest) (id digest.Digest, manifestDigest digest.Digest, err error) {
     manifestDigest, err = schema2ManifestDigest(ref, mfst)
     if err != nil {
